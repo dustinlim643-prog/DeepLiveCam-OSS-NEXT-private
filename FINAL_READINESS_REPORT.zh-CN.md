@@ -16,10 +16,22 @@ D:\DeepLiveCam2.7-Pro-0730_OSS_READY
 启动_DeepLiveCam_OBS.bat
 ```
 
+低延迟备用入口：
+
+```text
+启动_低延迟_DeepLiveCam_OBS.bat
+```
+
 停止入口：
 
 ```text
 停止_DeepLiveCam_OBS.bat
+```
+
+OBS 捕获修复入口：
+
+```text
+修复OBS捕获LivePreview.bat
 ```
 
 更新后自检入口：
@@ -48,6 +60,8 @@ RESULT: PASS
 - OBS 场景捕获目标是 `Live Preview`。
 - OBS 锐化和颜色滤镜存在。
 - 启动脚本包含 CUDA、实时 FPS debug、balanced 质量预设。
+- 启动脚本默认启用 GPEN-256 细节增强。
+- OBS 场景包含 1280x720 尺寸配置。
 - 关键 Python 文件能编译通过。
 
 ### 2. 生产环境快速检查
@@ -73,6 +87,7 @@ OK OBS Virtual Camera found
 ```text
 --execution-provider cuda
 --execution-threads 2
+--frame-processor face_swapper face_enhancer_gpen256
 --live-resizable
 --live-fps-debug
 --similar-face-distance 1.5
@@ -91,6 +106,40 @@ OK OBS Virtual Camera found
 ```
 
 验证完成后已运行停止脚本，项目内 DeepLiveCam/OBS 进程已停止。
+
+### 4. OBS 不显示修复
+
+如果 DeepLiveCam 已经点了 Live，`Live Preview` 已经出现，但 OBS 仍然黑屏，运行：
+
+```text
+修复OBS捕获LivePreview.bat
+```
+
+该脚本会：
+
+- 把 OBS 捕获目标重新写回 `Live Preview:Qt625QWindowIcon:python.exe`。
+- 把 OBS 场景重置为 1280x720 一比一。
+- 重启项目内 OBS 并启动虚拟摄像头。
+
+## 当前画质修正
+
+已把实时 Live Preview 从原来的 640x360 提升到：
+
+```text
+1280x720
+```
+
+原因：
+
+- 原来 640x360 被 OBS 放大后，脸部细节会明显糊。
+- 当前改为 1280x720 后，OBS 捕获和输出一比一，减少二次拉伸。
+- 主启动脚本默认启用 `face_enhancer_gpen256`，用于补基础 128 换脸模型导致的细节不足。
+
+注意：
+
+- `inswapper_128` 本身输入分辨率是 128，脸部细节不可能无限提升。
+- GPEN-256 会提升细节，但会增加一点 GPU 压力。
+- 如果测试时卡顿明显，用 `启动_低延迟_DeepLiveCam_OBS.bat`。
 
 ## 与 Pro 参考版本的功能对比
 

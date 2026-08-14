@@ -33,6 +33,7 @@ Check-File "OBS executable" (Join-Path $Root "obs-studio\bin\64bit\obs64.exe")
 Check-File "OBS portable marker" (Join-Path $Root "obs-studio\portable_mode.txt")
 Check-File "inswapper model" (Join-Path $Root "models\inswapper_128.onnx")
 Check-File "inswapper fp16 model" (Join-Path $Root "models\inswapper_128_fp16.onnx")
+Check-File "GPEN-256 model" (Join-Path $Root "models\GPEN-BFR-256.onnx")
 Check-File "OBS DeepLiveCam scene" (Join-Path $Root "obs-studio\config\obs-studio\basic\scenes\DeepLiveCam.json")
 Check-File "migration plan" (Join-Path $Root "FEATURE_MIGRATION_PLAN.zh-CN.md")
 
@@ -48,7 +49,7 @@ $StartScriptItem = $BatFiles | Where-Object {
 $StopScriptItem = $BatFiles | Where-Object {
     try {
         $text = Get-Content -LiteralPath $_.FullName -Raw
-        $text -match "Stop-Process" -and $text -match "obs64"
+        $text -match "DeepLiveCam and OBS stopped"
     } catch {
         $false
     }
@@ -85,6 +86,7 @@ if ($StartScriptItem) {
     $StartText = Get-Content -LiteralPath $StartScriptItem.FullName -Raw
     if ($StartText -match "--live-fps-debug") { Add-Line "OK startup script has --live-fps-debug" } else { Add-Line "ERROR startup script missing --live-fps-debug"; $Failed = $true }
     if ($StartText -match "--execution-provider cuda") { Add-Line "OK startup script uses cuda provider" } else { Add-Line "ERROR startup script missing cuda provider"; $Failed = $true }
+    if ($StartText -match "face_enhancer_gpen256") { Add-Line "OK startup script enables GPEN-256 detail enhancer" } else { Add-Line "ERROR startup script missing GPEN-256 detail enhancer"; $Failed = $true }
     if ($StartText -match "--quality-preset balanced") { Add-Line "OK startup script uses balanced quality preset" } else { Add-Line "ERROR startup script missing balanced quality preset"; $Failed = $true }
 } else {
     Add-Line "ERROR startup script parameter check skipped because start script was not found"
@@ -96,6 +98,7 @@ Add-Line "Checking OBS capture target..."
 $ScenePath = Join-Path $Root "obs-studio\config\obs-studio\basic\scenes\DeepLiveCam.json"
 $SceneText = if (Test-Path -LiteralPath $ScenePath) { Get-Content -LiteralPath $ScenePath -Raw } else { "" }
 if ($SceneText -match "Live Preview:Qt625QWindowIcon:python.exe") { Add-Line "OK OBS targets Live Preview" } else { Add-Line "ERROR OBS scene is not targeting Live Preview"; $Failed = $true }
+if ($SceneText -match '"x":\s*1280' -and $SceneText -match '"y":\s*720') { Add-Line "OK OBS scene contains 1280x720 sizing" } else { Add-Line "ERROR OBS scene missing 1280x720 sizing"; $Failed = $true }
 if ($SceneText -match "sharpness_filter") { Add-Line "OK OBS sharpen filter found" } else { Add-Line "WARN OBS sharpen filter not found" }
 if ($SceneText -match "color_filter") { Add-Line "OK OBS color filter found" } else { Add-Line "WARN OBS color filter not found" }
 
