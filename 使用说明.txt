@@ -1,0 +1,150 @@
+DeepLiveCam + OBS 使用说明
+
+当前最终项目位置：
+D:\DeepLiveCam2.7-Pro-0730_OSS_READY
+
+一、先说清楚当前逻辑
+
+现在使用原版 DeepLiveCam UI。
+正确链路是：
+
+DeepLiveCam 原版页面里选择源脸、选择摄像头、点击直播
+然后 DeepLiveCam 弹出 Live Preview 实时换脸窗口
+OBS 捕获 Live Preview
+Telegram 选择 OBS Virtual Camera
+
+也就是说：
+换脸操作在 DeepLiveCam 原版页面里完成。
+OBS 只负责把 DeepLiveCam 的 Live Preview 输出成虚拟摄像头。
+
+二、日常启动
+
+1. 打开文件夹：
+D:\DeepLiveCam2.7-Pro-0730_OSS_READY
+
+2. 双击：
+生产环境检查.bat
+
+看到下面这些是 OK，说明环境可用：
+OK python runtime
+OK bundled OBS
+OK OBS portable mode marker
+OK source face
+OK inswapper model
+OK nvidia-smi found
+OK OBS Virtual Camera found in DirectShow devices
+OK camera 0 opened
+
+3. 双击：
+启动_DeepLiveCam_OBS.bat
+
+它会按顺序打开：
+DeepLiveCam 原版中文 UI
+OBS 便携版
+
+三、DeepLiveCam 里怎么操作
+
+1. 在 DeepLiveCam 页面点击：
+选择一张脸
+
+如果界面有部分英文，按钮名可能显示为：
+Select a face
+
+2. 选择你授权使用的换脸图片。
+
+3. 在 Camera 区域选择摄像头。
+通常选择：
+4k Camera
+或 Camera 0
+
+4. 点击：
+直播
+
+如果界面有部分英文，按钮名可能显示为：
+Live
+
+5. 等待弹出窗口：
+Live Preview
+
+这个 Live Preview 就是 DeepLiveCam 处理后的实时换脸画面。
+
+四、OBS 怎么接
+
+OBS 会自动打开，并使用项目内便携配置。
+
+OBS 当前场景：
+DeepLiveCam
+
+OBS 当前捕获目标：
+Live Preview
+
+你必须先在 DeepLiveCam 里点 Live，让 Live Preview 窗口出现。
+Live Preview 没出现前，OBS 可能是空画面，这是正常的。
+
+五、Telegram 怎么接
+
+在 Telegram 视频通话里选择摄像头：
+OBS Virtual Camera
+
+对方看到的应该是 OBS 输出的 DeepLiveCam Live Preview。
+
+六、停止
+
+用完后双击：
+停止_DeepLiveCam_OBS.bat
+
+七、不要点这些
+
+不要点 run.py。
+不要点 run-cuda.bat。
+不要打开旧的 DeepFaceLive。
+不要在 Telegram 里选择普通摄像头。
+Telegram 里只选 OBS Virtual Camera。
+
+八、如果 OBS 没画面
+
+按顺序检查：
+
+1. DeepLiveCam 原版页面是否已经打开
+2. 是否已经选择源脸图片
+3. 是否已经选择摄像头
+4. 是否已经点击直播/Live
+5. 是否出现 Live Preview 窗口
+6. OBS 是否在捕获 Live Preview
+7. Telegram 是否选择 OBS Virtual Camera
+
+九、换电脑使用
+
+把整个文件夹复制到新电脑：
+D:\DeepLiveCam2.7-Pro-0730_OSS_READY
+
+新电脑先运行：
+生产环境检查.bat
+
+检查通过后运行：
+启动_DeepLiveCam_OBS.bat
+
+新电脑必须有：
+Windows 系统
+NVIDIA 显卡和驱动
+可用摄像头
+OBS Virtual Camera 能被视频软件识别
+
+十、日志位置
+
+操作记录：
+D:\DeepLiveCam2.7-Pro-0730_OSS_READY\logs\operation_log.txt
+
+生产环境检查报告：
+D:\DeepLiveCam2.7-Pro-0730_OSS_READY\logs\production_check.txt
+
+十一、当前说明
+
+OBS 已放在同一目录：
+D:\DeepLiveCam2.7-Pro-0730_OSS_READY\obs-studio
+
+OBS 使用便携模式，配置在：
+D:\DeepLiveCam2.7-Pro-0730_OSS_READY\obs-studio\config\obs-studio
+
+旧授权限制版本已经删除。
+现在不再依赖 E:\AI\DeepFaceLive 作为启动目录。

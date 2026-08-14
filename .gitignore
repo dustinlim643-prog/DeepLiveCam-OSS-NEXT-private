@@ -26,6 +26,12 @@ faceswap/
 .vscode/
 switch_states.json
 /models
+/ffmpeg/
+/python/
+/obs-studio/
+/logs/
+/source_faces/
+/outputs/
 install.bat
 /.claude
 *.bat

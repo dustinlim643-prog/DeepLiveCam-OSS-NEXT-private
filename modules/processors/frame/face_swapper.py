@@ -319,19 +319,25 @@ def _get_soft_alpha(size: int) -> np.ndarray:
     per-frame gives a visually equivalent feather at O(crop_area) cost —
     the feather radius scales naturally with the affine transform.
     """
-    if _paste_cache['alpha_size'] != size:
+    mask_scale = float(getattr(modules.globals, "face_mask_scale", 0.44))
+    mask_scale = max(0.36, min(0.52, mask_scale))
+    blur_size = int(getattr(modules.globals, "face_mask_blur", 31))
+    blur_size = max(3, blur_size | 1)
+    cache_key = (size, round(mask_scale, 3), blur_size)
+    if _paste_cache.get('alpha_key') != cache_key:
         # Elliptical (not square) template — matches the gumroad edition's
         # _create_elliptical_mask. A full/eroded square leaves the aligned
         # crop's corners near-opaque, so the swapped square's straight edges
         # show as a visible box on the face. An ellipse (axes 0.44*size) zeroes
         # the corners and the heavy blur feathers smoothly into the original.
         center = (size // 2, size // 2)
-        axes = (int(size * 0.44), int(size * 0.44))
+        axes = (int(size * mask_scale), int(size * mask_scale))
         mask = np.zeros((size, size), dtype=np.uint8)
         cv2.ellipse(mask, center, axes, 0, 0, 360, 255, -1)
-        mask = cv2.GaussianBlur(mask, (31, 31), 12)
+        mask = cv2.GaussianBlur(mask, (blur_size, blur_size), blur_size / 3.0)
         _paste_cache['soft_alpha'] = mask  # uint8 [0, 255] — blended via cv2 SIMD ops
         _paste_cache['alpha_size'] = size
+        _paste_cache['alpha_key'] = cache_key
     return _paste_cache['soft_alpha']
 
 # CUDA graph swap session cache
@@ -525,7 +531,8 @@ def swap_face(source_face: Face, target_face: Face, temp_frame: Frame) -> Frame:
     # destination. Without this, original_frame aliases temp_frame, which
     # _fast_paste_back mutates in place — so seamlessClone would blend the
     # swapped face onto the already-swapped frame (no visible effect).
-    needs_original = opacity < 1.0 or mouth_mask_enabled or poisson_blend_enabled
+    color_correction_enabled = getattr(modules.globals, "color_correction", False)
+    needs_original = opacity < 1.0 or mouth_mask_enabled or poisson_blend_enabled or color_correction_enabled
     if needs_original:
         original_frame = temp_frame.copy()
     else:
@@ -559,6 +566,23 @@ def swap_face(source_face: Face, target_face: Face, temp_frame: Frame) -> Frame:
         # to create the white mask. Avoids redundant norm_crop2 (~0.6ms).
         _face_size = face_swapper.input_size[0]
         _aimg_dummy = np.empty((_face_size, _face_size, 3), dtype=np.uint8)
+
+        if color_correction_enabled:
+            target_aligned = cv2.warpAffine(
+                original_frame.astype(np.uint8),
+                M,
+                (_face_size, _face_size),
+                borderMode=cv2.BORDER_REPLICATE
+            )
+            corrected = apply_color_transfer(bgr_fake.astype(np.uint8), target_aligned)
+            strength = float(getattr(modules.globals, "color_transfer_strength", 0.35))
+            strength = max(0.0, min(1.0, strength))
+            if strength > 0.0:
+                bgr_fake = gpu_add_weighted(
+                    bgr_fake.astype(np.uint8), 1.0 - strength,
+                    corrected.astype(np.uint8), strength,
+                    0
+                )
 
         swapped_frame = _fast_paste_back(temp_frame, bgr_fake, _aimg_dummy, M)
 
@@ -863,8 +887,10 @@ def process_frame_v2(temp_frame: Frame, temp_frame_path: str = "") -> Frame:
                           for detected_face in detected_faces:
                               if detected_face.normed_embedding is None:
                                   continue
-                              closest_idx, _ = find_closest_centroid(target_embeddings, detected_face.normed_embedding)
-                              if 0 <= closest_idx < len(source_faces):
+                              closest_idx, closest_embedding = find_closest_centroid(target_embeddings, detected_face.normed_embedding)
+                              similarity = float(np.dot(np.array(closest_embedding), np.array(detected_face.normed_embedding)))
+                              face_distance = 1.0 - similarity
+                              if 0 <= closest_idx < len(source_faces) and face_distance <= modules.globals.similar_face_distance:
                                   source_target_pairs.append((source_faces[closest_idx], detected_face))
                      else:
                           # More faces detected than targets defined - match each target embedding to closest detected face
@@ -875,8 +901,10 @@ def process_frame_v2(temp_frame: Frame, temp_frame_path: str = "") -> Frame:
 
                           for i, target_embedding in enumerate(target_embeddings):
                               if 0 <= i < len(source_faces): # Ensure source face exists for this embedding
-                                 closest_idx, _ = find_closest_centroid(detected_embeddings, target_embedding)
-                                 if 0 <= closest_idx < len(detected_faces_with_embedding):
+                                 closest_idx, closest_embedding = find_closest_centroid(detected_embeddings, target_embedding)
+                                 similarity = float(np.dot(np.array(closest_embedding), np.array(target_embedding)))
+                                 face_distance = 1.0 - similarity
+                                 if 0 <= closest_idx < len(detected_faces_with_embedding) and face_distance <= modules.globals.similar_face_distance:
                                      source_target_pairs.append((source_faces[i], detected_faces_with_embedding[closest_idx]))
             else: # Fallback: if no map, use default source for the single detected face (if any)
                 source_face = default_source_face()

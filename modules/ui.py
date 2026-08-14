@@ -331,8 +331,9 @@ def load_switch_states():
         modules.globals.keep_frames = state.get("keep_frames", False)
         modules.globals.many_faces = state.get("many_faces", False)
         modules.globals.map_faces = state.get("map_faces", False)
-        modules.globals.poisson_blend = state.get("poisson_blend", False)
-        modules.globals.color_correction = state.get("color_correction", False)
+        if not getattr(modules.globals, "quality_preset", ""):
+            modules.globals.poisson_blend = state.get("poisson_blend", False)
+            modules.globals.color_correction = state.get("color_correction", False)
         modules.globals.nsfw_filter = state.get("nsfw_filter", False)
         modules.globals.live_mirror = state.get("live_mirror", False)
         modules.globals.live_resizable = state.get("live_resizable", False)
@@ -655,7 +656,7 @@ class MainWindow(QMainWindow):
 
         # Sharpness
         grid.addWidget(QLabel(_("Sharpness")), 1, 0)
-        self.s_sharpness = slider(0.0, 5.0, 0.0, 10, self._on_sharpness_change)
+        self.s_sharpness = slider(0.0, 5.0, modules.globals.sharpness, 10, self._on_sharpness_change)
         self.s_sharpness.setToolTip(_("Sharpen the enhanced face output"))
         grid.addWidget(self.s_sharpness, 1, 1)
 
@@ -1049,8 +1050,11 @@ class _ProcessingWorker(QThread):
         last_source_path = None
         prev_time = time.time()
         fps_update_interval = 0.5
+        fps_debug_interval = 5.0
         frame_count = 0
+        debug_frame_count = 0
         fps = 0.0
+        last_debug_time = prev_time
         det_count = 0
         cached_target_face = None
         cached_many_faces = None
@@ -1147,10 +1151,19 @@ class _ProcessingWorker(QThread):
 
             current_time = time.time()
             frame_count += 1
+            debug_frame_count += 1
             if current_time - prev_time >= fps_update_interval:
                 fps = frame_count / (current_time - prev_time)
                 frame_count = 0
                 prev_time = current_time
+            if modules.globals.live_fps_debug and current_time - last_debug_time >= fps_debug_interval:
+                debug_fps = debug_frame_count / (current_time - last_debug_time)
+                print(
+                    f"[live-fps] process={debug_fps:.1f} camera={self._fps:.1f} "
+                    f"detect_every={det_interval} queue_in={self._cq.qsize()} queue_out={self._pq.qsize()}"
+                )
+                debug_frame_count = 0
+                last_debug_time = current_time
 
             if modules.globals.show_fps:
                 cv2.putText(

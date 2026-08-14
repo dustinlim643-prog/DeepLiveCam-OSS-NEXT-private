@@ -56,9 +56,12 @@ def parse_args() -> None:
     program.add_argument('-l', '--lang', help='Ui language', default="en")
     program.add_argument('--live-mirror', help='The live camera display as you see it in the front-facing camera frame', dest='live_mirror', action='store_true', default=False)
     program.add_argument('--live-resizable', help='The live camera frame is resizable', dest='live_resizable', action='store_true', default=False)
+    program.add_argument('--live-fps-debug', help='print actual live processing FPS every 5 seconds', dest='live_fps_debug', action='store_true', default=False)
+    program.add_argument('--quality-preset', help='live quality preset', dest='quality_preset', default='balanced', choices=['low_latency', 'balanced', 'high_quality'])
     program.add_argument('--max-memory', help='maximum amount of RAM in GB', dest='max_memory', type=int, default=suggest_max_memory())
     program.add_argument('--execution-provider', help='execution provider', dest='execution_provider', default=[suggest_default_execution_provider()], choices=suggest_execution_providers(), nargs='+')
     program.add_argument('--execution-threads', help='number of execution threads', dest='execution_threads', type=int, default=None)
+    program.add_argument('--similar-face-distance', help='maximum face distance used for mapped-face recognition', dest='similar_face_distance', type=float, default=1.5)
     program.add_argument('-v', '--version', action='version', version=f'{modules.metadata.name} {modules.metadata.version}')
 
     # register deprecated args
@@ -85,9 +88,12 @@ def parse_args() -> None:
     modules.globals.video_quality = args.video_quality
     modules.globals.live_mirror = args.live_mirror
     modules.globals.live_resizable = args.live_resizable
+    modules.globals.live_fps_debug = args.live_fps_debug
+    apply_quality_preset(args.quality_preset)
     modules.globals.max_memory = args.max_memory
     modules.globals.execution_providers = decode_execution_providers(args.execution_provider)
     modules.globals.execution_threads = args.execution_threads
+    modules.globals.similar_face_distance = args.similar_face_distance
     modules.globals.lang = args.lang
 
     # The argparse default (None) avoids evaluating suggest_execution_threads()
@@ -120,6 +126,37 @@ def parse_args() -> None:
     if args.gpu_threads_deprecated:
         print('\033[33mArgument --gpu-threads is deprecated. Use --execution-threads instead.\033[0m')
         modules.globals.execution_threads = args.gpu_threads_deprecated
+
+
+def apply_quality_preset(preset: str) -> None:
+    modules.globals.quality_preset = preset
+    if preset == 'low_latency':
+        modules.globals.poisson_blend = False
+        modules.globals.color_correction = True
+        modules.globals.color_transfer_strength = 0.25
+        modules.globals.sharpness = 0.18
+        modules.globals.face_mask_scale = 0.43
+        modules.globals.face_mask_blur = 23
+        modules.globals.enable_interpolation = True
+        modules.globals.interpolation_weight = 0.82
+    elif preset == 'high_quality':
+        modules.globals.poisson_blend = True
+        modules.globals.color_correction = True
+        modules.globals.color_transfer_strength = 0.45
+        modules.globals.sharpness = 0.32
+        modules.globals.face_mask_scale = 0.46
+        modules.globals.face_mask_blur = 39
+        modules.globals.enable_interpolation = True
+        modules.globals.interpolation_weight = 0.62
+    else:
+        modules.globals.poisson_blend = False
+        modules.globals.color_correction = True
+        modules.globals.color_transfer_strength = 0.35
+        modules.globals.sharpness = 0.25
+        modules.globals.face_mask_scale = 0.44
+        modules.globals.face_mask_blur = 31
+        modules.globals.enable_interpolation = True
+        modules.globals.interpolation_weight = 0.72
 
 
 def encode_execution_providers(execution_providers: List[str]) -> List[str]:

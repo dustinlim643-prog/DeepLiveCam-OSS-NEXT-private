@@ -41,6 +41,8 @@ live_resizable: bool = True
 camera_input_combobox: Any | None = None # Placeholder for UI element if needed
 webcam_preview_running: bool = False
 show_fps: bool = False
+live_fps_debug: bool = False
+similar_face_distance: float = 1.5
 
 # System Configuration
 max_memory: int | None = None        # Memory limit in GB? (Needs clarification)
@@ -55,7 +57,11 @@ fp_ui: Dict[str, bool] = {"face_enhancer": False, "face_enhancer_gpen256": False
 # Face Swapper Specific Options
 face_swapper_enabled: bool = True # General toggle for the swapper processor
 opacity: float = 1.0              # Blend factor for the swapped face (0.0-1.0)
-sharpness: float = 0.0            # Sharpness enhancement for swapped face (0.0-1.0+)
+sharpness: float = 0.25           # Sharpness enhancement for swapped face (0.0-1.0+)
+quality_preset: str = "balanced"
+face_mask_scale: float = 0.44
+face_mask_blur: int = 31
+color_transfer_strength: float = 0.35
 
 # Mouth Mask Options
 mouth_mask: bool = False           # Enable mouth area masking/pasting
@@ -67,7 +73,7 @@ mouth_mask_size: float = 0.0       # Mouth mask size (0-100; 0=off, 100=mouth to
 
 # --- START: Added for Frame Interpolation ---
 enable_interpolation: bool = True # Toggle temporal smoothing
-interpolation_weight: float = 0  # Blend weight for current frame (0.0-1.0). Lower=smoother.
+interpolation_weight: float = 0.72  # Blend weight for current frame (0.0-1.0). Lower=smoother.
 # --- END: Added for Frame Interpolation ---
 
 # --- END OF FILE globals.py ---
