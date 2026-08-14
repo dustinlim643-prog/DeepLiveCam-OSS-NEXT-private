@@ -46,6 +46,7 @@ similar_face_distance: float = 1.5
 live_single_face_tracking: bool = True
 live_face_iou_threshold: float = 0.12
 live_face_smooth: float = 0.35
+live_xseg_mask: bool = False
 
 # System Configuration
 max_memory: int | None = None        # Memory limit in GB? (Needs clarification)
@@ -64,6 +65,9 @@ sharpness: float = 0.25           # Sharpness enhancement for swapped face (0.0-
 quality_preset: str = "balanced"
 face_mask_scale: float = 0.44
 face_mask_blur: int = 31
+face_xseg_mask_strength: float = 0.85
+face_xseg_mask_blur: int = 13
+face_xseg_mask_dilate: int = 5
 color_transfer_strength: float = 0.35
 face_fit_scale: float = 1.06
 

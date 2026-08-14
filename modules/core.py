@@ -64,6 +64,8 @@ def parse_args() -> None:
     program.add_argument('--similar-face-distance', help='maximum face distance used for mapped-face recognition', dest='similar_face_distance', type=float, default=1.5)
     program.add_argument('--live-face-smooth', help='single-face live tracking smoothing amount', dest='live_face_smooth', type=float, default=0.35)
     program.add_argument('--live-face-fit-scale', help='scale target landmarks for better live face coverage', dest='face_fit_scale', type=float, default=1.06)
+    program.add_argument('--live-xseg-mask', help='use XSeg semantic face mask for higher quality live blending', dest='live_xseg_mask', action='store_true', default=None)
+    program.add_argument('--no-live-xseg-mask', help='disable XSeg semantic face mask', dest='live_xseg_mask', action='store_false')
     program.add_argument('-v', '--version', action='version', version=f'{modules.metadata.name} {modules.metadata.version}')
 
     # register deprecated args
@@ -98,6 +100,8 @@ def parse_args() -> None:
     modules.globals.similar_face_distance = args.similar_face_distance
     modules.globals.live_face_smooth = max(0.0, min(0.8, args.live_face_smooth))
     modules.globals.face_fit_scale = max(0.96, min(1.18, args.face_fit_scale))
+    if args.live_xseg_mask is not None:
+        modules.globals.live_xseg_mask = args.live_xseg_mask
     modules.globals.lang = args.lang
 
     # The argparse default (None) avoids evaluating suggest_execution_threads()
@@ -141,6 +145,10 @@ def apply_quality_preset(preset: str) -> None:
         modules.globals.sharpness = 0.18
         modules.globals.face_mask_scale = 0.45
         modules.globals.face_mask_blur = 23
+        modules.globals.live_xseg_mask = False
+        modules.globals.face_xseg_mask_strength = 0.65
+        modules.globals.face_xseg_mask_blur = 9
+        modules.globals.face_xseg_mask_dilate = 3
         modules.globals.face_fit_scale = 1.04
         modules.globals.enable_interpolation = True
         modules.globals.interpolation_weight = 0.82
@@ -151,6 +159,10 @@ def apply_quality_preset(preset: str) -> None:
         modules.globals.sharpness = 0.32
         modules.globals.face_mask_scale = 0.50
         modules.globals.face_mask_blur = 39
+        modules.globals.live_xseg_mask = True
+        modules.globals.face_xseg_mask_strength = 0.90
+        modules.globals.face_xseg_mask_blur = 15
+        modules.globals.face_xseg_mask_dilate = 7
         modules.globals.face_fit_scale = 1.09
         modules.globals.enable_interpolation = True
         modules.globals.interpolation_weight = 0.62
@@ -161,6 +173,10 @@ def apply_quality_preset(preset: str) -> None:
         modules.globals.sharpness = 0.25
         modules.globals.face_mask_scale = 0.47
         modules.globals.face_mask_blur = 31
+        modules.globals.live_xseg_mask = False
+        modules.globals.face_xseg_mask_strength = 0.85
+        modules.globals.face_xseg_mask_blur = 13
+        modules.globals.face_xseg_mask_dilate = 5
         modules.globals.face_fit_scale = 1.06
         modules.globals.enable_interpolation = True
         modules.globals.interpolation_weight = 0.72

@@ -28,6 +28,8 @@ MODEL_FILE = "hyperswap_1a_256.onnx"
 MODEL_SIZE = 256
 THREAD_LOCK = threading.Lock()
 FACE_SWAPPER = None
+XSEG_LOCK = threading.Lock()
+XSEG_SESSION = None
 
 WARP_TEMPLATE_ARCFACE_128 = np.array(
     [
@@ -81,6 +83,34 @@ def get_face_swapper() -> Optional[onnxruntime.InferenceSession]:
                 update_status(f"Error loading HyperSwap 256 model: {e}", NAME)
                 FACE_SWAPPER = None
     return FACE_SWAPPER
+
+
+def get_xseg_session() -> Optional[onnxruntime.InferenceSession]:
+    global XSEG_SESSION
+    with XSEG_LOCK:
+        if XSEG_SESSION is None:
+            for model_file in ("xseg_cuda_v1.onnx", "xseg.onnx"):
+                model_path = os.path.join(models_dir, model_file)
+                if not os.path.exists(model_path):
+                    continue
+                try:
+                    session_options = onnxruntime.SessionOptions()
+                    session_options.graph_optimization_level = (
+                        onnxruntime.GraphOptimizationLevel.ORT_ENABLE_ALL
+                    )
+                    # This model falls back to CPU in the bundled runtime on this
+                    # machine. Keep it explicit to avoid CUDA provider warnings.
+                    XSEG_SESSION = onnxruntime.InferenceSession(
+                        model_path,
+                        sess_options=session_options,
+                        providers=["CPUExecutionProvider"],
+                    )
+                    update_status(f"XSeg mask model loaded: {model_file}", NAME)
+                    break
+                except Exception as e:
+                    update_status(f"Error loading XSeg mask model {model_file}: {e}", NAME)
+                    XSEG_SESSION = None
+    return XSEG_SESSION
 
 
 def _validate_model_io(session: onnxruntime.InferenceSession) -> None:
@@ -168,7 +198,50 @@ def _soft_crop_mask(size: int) -> np.ndarray:
     return mask.clip(0, 1)
 
 
-def _paste_back(target_img: Frame, bgr_fake: np.ndarray, affine_matrix: np.ndarray) -> Frame:
+def _xseg_crop_mask(crop_frame: np.ndarray) -> Optional[np.ndarray]:
+    if not getattr(modules.globals, "live_xseg_mask", False):
+        return None
+    session = get_xseg_session()
+    if session is None:
+        return None
+
+    try:
+        input_name = session.get_inputs()[0].name
+        model_input = crop_frame.astype(np.float32) / 255.0
+        model_input = np.expand_dims(model_input, axis=0)
+        mask = session.run(None, {input_name: model_input})[0][0, :, :, 0]
+        mask = np.nan_to_num(mask).astype(np.float32)
+        mask = np.clip(mask, 0.0, 1.0)
+
+        dilate_size = int(getattr(modules.globals, "face_xseg_mask_dilate", 5))
+        if dilate_size > 1:
+            dilate_size = dilate_size | 1
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (dilate_size, dilate_size))
+            mask = cv2.dilate(mask, kernel, iterations=1)
+
+        blur_size = int(getattr(modules.globals, "face_xseg_mask_blur", 13))
+        if blur_size > 1:
+            blur_size = blur_size | 1
+            mask = cv2.GaussianBlur(mask, (blur_size, blur_size), blur_size / 3.0)
+        return np.clip(mask, 0.0, 1.0)
+    except Exception as e:
+        print(f"{NAME}: XSeg mask skipped: {e}")
+        return None
+
+
+def _combined_crop_mask(crop_frame: np.ndarray) -> np.ndarray:
+    base_mask = _soft_crop_mask(MODEL_SIZE)
+    xseg_mask = _xseg_crop_mask(crop_frame)
+    if xseg_mask is None:
+        return base_mask
+
+    strength = float(getattr(modules.globals, "face_xseg_mask_strength", 0.85))
+    strength = max(0.0, min(1.0, strength))
+    semantic_mask = np.minimum(base_mask, xseg_mask)
+    return (base_mask * (1.0 - strength) + semantic_mask * strength).clip(0, 1)
+
+
+def _paste_back(target_img: Frame, bgr_fake: np.ndarray, affine_matrix: np.ndarray, crop_frame: np.ndarray) -> Frame:
     h, w = target_img.shape[:2]
     inv = cv2.invertAffineTransform(affine_matrix)
     corners = np.array(
@@ -202,7 +275,7 @@ def _paste_back(target_img: Frame, bgr_fake: np.ndarray, affine_matrix: np.ndarr
         borderMode=cv2.BORDER_REPLICATE,
     )
     alpha = cv2.warpAffine(
-        _soft_crop_mask(MODEL_SIZE),
+        _combined_crop_mask(crop_frame),
         inv_crop,
         (crop_w, crop_h),
         flags=cv2.INTER_LINEAR,
@@ -264,7 +337,7 @@ def swap_face(source_face: Face, target_face: Face, temp_frame: Frame) -> Frame:
             if strength > 0.0:
                 bgr_fake = cv2.addWeighted(bgr_fake, 1.0 - strength, corrected, strength, 0)
 
-        swapped_frame = _paste_back(temp_frame, bgr_fake, affine_matrix)
+        swapped_frame = _paste_back(temp_frame, bgr_fake, affine_matrix, crop_frame)
     except Exception as e:
         print(f"{NAME}: Error during HyperSwap face swap: {e}")
         return original_frame

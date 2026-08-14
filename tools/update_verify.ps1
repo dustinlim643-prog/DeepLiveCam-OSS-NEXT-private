@@ -35,6 +35,7 @@ Check-File "OBS portable marker" (Join-Path $Root "obs-studio\portable_mode.txt"
 Check-File "inswapper model" (Join-Path $Root "models\inswapper_128.onnx")
 Check-File "inswapper fp16 model" (Join-Path $Root "models\inswapper_128_fp16.onnx")
 Check-File "HyperSwap 256 model" (Join-Path $Root "models\hyperswap_1a_256.onnx")
+Check-File "XSeg mask model" (Join-Path $Root "models\xseg.onnx")
 Check-File "GPEN-256 model" (Join-Path $Root "models\GPEN-BFR-256.onnx")
 Check-File "HyperSwap processor" (Join-Path $Root "modules\processors\frame\face_swapper_hyperswap.py")
 Check-File "OBS Live Preview watcher" (Join-Path $Root "tools\wait_for_live_preview_and_restart_obs.ps1")
@@ -119,6 +120,7 @@ if ($HelpText -match "--quality-preset") { Add-Line "OK --quality-preset exposed
 if ($HelpText -match "face_swapper_hyperswap") { Add-Line "OK HyperSwap processor is exposed" } else { Add-Line "ERROR HyperSwap processor is not exposed"; $Failed = $true }
 if ($HelpText -match "--live-face-smooth") { Add-Line "OK --live-face-smooth exposed" } else { Add-Line "ERROR missing --live-face-smooth in run.py help"; $Failed = $true }
 if ($HelpText -match "--live-face-fit-scale") { Add-Line "OK --live-face-fit-scale exposed" } else { Add-Line "ERROR missing --live-face-fit-scale in run.py help"; $Failed = $true }
+if ($HelpText -match "--live-xseg-mask") { Add-Line "OK --live-xseg-mask exposed" } else { Add-Line "ERROR missing --live-xseg-mask in run.py help"; $Failed = $true }
 
 Add-Line ""
 Add-Line "Checking startup script parameters..."
@@ -130,7 +132,8 @@ if ($StartScriptItem) {
     if ($StartText -notmatch "face_enhancer_gpen256") { Add-Line "OK startup script leaves GPEN disabled by default for FPS" } else { Add-Line "ERROR startup script should not enable GPEN by default"; $Failed = $true }
     if ($StartText -match "--live-face-smooth" -and $StartText -match '"0\.35"') { Add-Line "OK startup script enables single-face smoothing" } else { Add-Line "ERROR startup script missing live face smoothing"; $Failed = $true }
     if ($StartText -match "--live-face-fit-scale" -and $StartText -match '"1\.06"') { Add-Line "OK startup script enables face fit scale" } else { Add-Line "ERROR startup script missing face fit scale"; $Failed = $true }
-    if ($StartText -match "--quality-preset" -and $StartText -match '"balanced"') { Add-Line "OK startup script uses balanced quality preset" } else { Add-Line "ERROR startup script missing balanced quality preset"; $Failed = $true }
+    if ($StartText -match "--quality-preset" -and $StartText -match '"high_quality"') { Add-Line "OK startup script uses high_quality preset" } else { Add-Line "ERROR startup script missing high_quality preset"; $Failed = $true }
+    if ($StartText -match "--live-xseg-mask") { Add-Line "OK startup script enables XSeg mask" } else { Add-Line "ERROR startup script missing XSeg mask"; $Failed = $true }
     if ($StartText -match "wait_for_live_preview_and_restart_obs\.ps1") { Add-Line "OK startup script refreshes OBS after Live Preview appears" } else { Add-Line "ERROR startup script missing OBS Live Preview watcher"; $Failed = $true }
 } else {
     Add-Line "ERROR startup script parameter check skipped because start script was not found"

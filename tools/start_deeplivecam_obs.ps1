@@ -61,7 +61,8 @@ $DeepLiveArgs = @(
     "--similar-face-distance", "1.5",
     "--live-face-smooth", "0.35",
     "--live-face-fit-scale", "1.06",
-    "--quality-preset", "balanced",
+    "--quality-preset", "high_quality",
+    "--live-xseg-mask",
     "-l", "zh"
 )
 Start-Process -FilePath $Python -ArgumentList $DeepLiveArgs -WorkingDirectory $Root
@@ -73,4 +74,3 @@ Add-OperationLog "OBS watcher started"
 Start-Sleep -Seconds 5
 Start-Process -FilePath $ObsExe -ArgumentList @("--portable", "--collection", "DeepLiveCam", "--scene", "DeepLiveCam", "--startvirtualcam") -WorkingDirectory $ObsDir
 Add-OperationLog "OBS started for Live Preview capture"
-
