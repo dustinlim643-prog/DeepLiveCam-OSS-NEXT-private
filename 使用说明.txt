@@ -6,13 +6,13 @@ D:\DeepLiveCam2.7-Pro-0730_OSS_READY
 一、根目录只用这 3 个入口
 
 1. 启动：
-1_START.bat
+1_START.cmd
 
 2. 停止：
-2_STOP.bat
+2_STOP.cmd
 
 3. 自检：
-3_CHECK.bat
+3_CHECK.cmd
 
 其他修复逻辑已经放到 tools 内部，启动脚本会自动处理 OBS 场景，不需要用户手动点一堆脚本。
 
@@ -31,7 +31,7 @@ Telegram 里不要选真实摄像头，只选 OBS Virtual Camera。
 三、日常操作步骤
 
 1. 双击：
-1_START.bat
+1_START.cmd
 
 2. 等待 DeepLiveCam UI 和 OBS 都打开。
 
@@ -104,7 +104,7 @@ Pro 文档里影响画质的关键点：
 1. 先确认 DeepLiveCam 已经点 Live / 直播。
 2. 确认 Live Preview 窗口已经出现。
 3. 等 3-5 秒，启动脚本里的 OBS watcher 会自动重启 OBS 捕获。
-4. 如果仍没有画面，双击 2_STOP.bat 后重新启动。
+4. 如果仍没有画面，双击 2_STOP.cmd 后重新启动。
 
 画面模糊：
 1. 优先换更清晰、更正脸、更接近目标脸型的源图。
@@ -131,4 +131,4 @@ OBS Virtual Camera 可被 Telegram 识别
 脚本使用相对路径，不强制必须放在 D 盘。
 
 注意：
-根目录入口使用英文编号，是为了避免中文 bat 文件名在部分 Windows 命令行环境下异常丢失。
+根目录入口使用英文编号 `.cmd`，是为了避免中文 bat 文件名在部分 Windows 命令行环境下异常丢失。

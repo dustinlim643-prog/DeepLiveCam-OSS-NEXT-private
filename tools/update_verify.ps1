@@ -38,6 +38,8 @@ Check-File "HyperSwap 256 model" (Join-Path $Root "models\hyperswap_1a_256.onnx"
 Check-File "GPEN-256 model" (Join-Path $Root "models\GPEN-BFR-256.onnx")
 Check-File "HyperSwap processor" (Join-Path $Root "modules\processors\frame\face_swapper_hyperswap.py")
 Check-File "OBS Live Preview watcher" (Join-Path $Root "tools\wait_for_live_preview_and_restart_obs.ps1")
+Check-File "start helper" (Join-Path $Root "tools\start_deeplivecam_obs.ps1")
+Check-File "stop helper" (Join-Path $Root "tools\stop_deeplivecam_obs.ps1")
 Check-File "OBS DeepLiveCam scene" (Join-Path $Root "obs-studio\config\obs-studio\basic\scenes\DeepLiveCam.json")
 Check-File "migration plan" (Join-Path $Root "FEATURE_MIGRATION_PLAN.zh-CN.md")
 $UserGuideItem = Get-ChildItem -LiteralPath $Root -Filter "*.txt" -File | Where-Object {
@@ -55,19 +57,19 @@ if ($UserGuideItem) {
     $Failed = $true
 }
 
-$BatFiles = Get-ChildItem -LiteralPath $Root -Filter "*.bat" -File
-$StartScriptItem = $BatFiles | Where-Object {
+$LauncherFiles = Get-ChildItem -LiteralPath $Root -File | Where-Object { $_.Extension -in @(".cmd", ".bat") }
+$StartScriptItem = $LauncherFiles | Where-Object {
     try {
         $text = Get-Content -LiteralPath $_.FullName -Raw
-        $text -match "run.py" -and $text -match "--startvirtualcam"
+        $text -match "start_deeplivecam_obs\.ps1"
     } catch {
         $false
     }
 } | Select-Object -First 1
-$StopScriptItem = $BatFiles | Where-Object {
+$StopScriptItem = $LauncherFiles | Where-Object {
     try {
         $text = Get-Content -LiteralPath $_.FullName -Raw
-        $text -match "DeepLiveCam and OBS stopped"
+        $text -match "stop_deeplivecam_obs\.ps1"
     } catch {
         $false
     }
@@ -86,8 +88,8 @@ if ($StopScriptItem) {
     $Failed = $true
 }
 
-$RootBatNames = @($BatFiles | ForEach-Object { $_.Name } | Sort-Object)
-$SelfCheckScriptItem = $BatFiles | Where-Object {
+$RootLauncherNames = @($LauncherFiles | ForEach-Object { $_.Name } | Sort-Object)
+$SelfCheckScriptItem = $LauncherFiles | Where-Object {
     try {
         $text = Get-Content -LiteralPath $_.FullName -Raw
         $text -match "tools\\update_verify\.ps1"
@@ -95,10 +97,10 @@ $SelfCheckScriptItem = $BatFiles | Where-Object {
         $false
     }
 } | Select-Object -First 1
-if ($RootBatNames.Count -eq 3 -and $StartScriptItem -and $StopScriptItem -and $SelfCheckScriptItem) {
-    Add-Line "OK root launcher list is clean: $($RootBatNames -join ', ')"
+if ($RootLauncherNames.Count -eq 3 -and $StartScriptItem -and $StopScriptItem -and $SelfCheckScriptItem) {
+    Add-Line "OK root launcher list is clean: $($RootLauncherNames -join ', ')"
 } else {
-    Add-Line "ERROR root launcher list is not clean or incomplete: $($RootBatNames -join ', ')"
+    Add-Line "ERROR root launcher list is not clean or incomplete: $($RootLauncherNames -join ', ')"
     Add-Line "Expected exactly 3 launchers by role: start, stop, self-check"
     $Failed = $true
 }
@@ -121,14 +123,14 @@ if ($HelpText -match "--live-face-fit-scale") { Add-Line "OK --live-face-fit-sca
 Add-Line ""
 Add-Line "Checking startup script parameters..."
 if ($StartScriptItem) {
-    $StartText = Get-Content -LiteralPath $StartScriptItem.FullName -Raw
+    $StartText = Get-Content -LiteralPath (Join-Path $Root "tools\start_deeplivecam_obs.ps1") -Raw
     if ($StartText -match "--live-fps-debug") { Add-Line "OK startup script has --live-fps-debug" } else { Add-Line "ERROR startup script missing --live-fps-debug"; $Failed = $true }
-    if ($StartText -match "--execution-provider cuda") { Add-Line "OK startup script uses cuda provider" } else { Add-Line "ERROR startup script missing cuda provider"; $Failed = $true }
+    if ($StartText -match "--execution-provider" -and $StartText -match '"cuda"') { Add-Line "OK startup script uses cuda provider" } else { Add-Line "ERROR startup script missing cuda provider"; $Failed = $true }
     if ($StartText -match "face_swapper_hyperswap") { Add-Line "OK startup script uses HyperSwap 256 swapper" } else { Add-Line "ERROR startup script is not using HyperSwap 256"; $Failed = $true }
     if ($StartText -notmatch "face_enhancer_gpen256") { Add-Line "OK startup script leaves GPEN disabled by default for FPS" } else { Add-Line "ERROR startup script should not enable GPEN by default"; $Failed = $true }
-    if ($StartText -match "--live-face-smooth 0\.35") { Add-Line "OK startup script enables single-face smoothing" } else { Add-Line "ERROR startup script missing live face smoothing"; $Failed = $true }
-    if ($StartText -match "--live-face-fit-scale 1\.06") { Add-Line "OK startup script enables face fit scale" } else { Add-Line "ERROR startup script missing face fit scale"; $Failed = $true }
-    if ($StartText -match "--quality-preset balanced") { Add-Line "OK startup script uses balanced quality preset" } else { Add-Line "ERROR startup script missing balanced quality preset"; $Failed = $true }
+    if ($StartText -match "--live-face-smooth" -and $StartText -match '"0\.35"') { Add-Line "OK startup script enables single-face smoothing" } else { Add-Line "ERROR startup script missing live face smoothing"; $Failed = $true }
+    if ($StartText -match "--live-face-fit-scale" -and $StartText -match '"1\.06"') { Add-Line "OK startup script enables face fit scale" } else { Add-Line "ERROR startup script missing face fit scale"; $Failed = $true }
+    if ($StartText -match "--quality-preset" -and $StartText -match '"balanced"') { Add-Line "OK startup script uses balanced quality preset" } else { Add-Line "ERROR startup script missing balanced quality preset"; $Failed = $true }
     if ($StartText -match "wait_for_live_preview_and_restart_obs\.ps1") { Add-Line "OK startup script refreshes OBS after Live Preview appears" } else { Add-Line "ERROR startup script missing OBS Live Preview watcher"; $Failed = $true }
 } else {
     Add-Line "ERROR startup script parameter check skipped because start script was not found"
@@ -208,7 +210,9 @@ Add-Line "Checking PowerShell script syntax..."
 $PsScripts = @(
     "tools\reset_obs_scene.ps1",
     "tools\update_verify.ps1",
-    "tools\wait_for_live_preview_and_restart_obs.ps1"
+    "tools\wait_for_live_preview_and_restart_obs.ps1",
+    "tools\start_deeplivecam_obs.ps1",
+    "tools\stop_deeplivecam_obs.ps1"
 )
 foreach ($PsScript in $PsScripts) {
     $PsPath = Join-Path $Root $PsScript
