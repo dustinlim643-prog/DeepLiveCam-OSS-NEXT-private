@@ -51,7 +51,7 @@ OBS Virtual Camera
 启动脚本当前使用：
 --execution-provider cuda
 --execution-threads 2
---frame-processor face_swapper face_enhancer_gpen256
+--frame-processor face_swapper_hyperswap face_enhancer_gpen256
 --live-resizable
 --live-fps-debug
 --similar-face-distance 1.5
@@ -81,8 +81,8 @@ Pro 文档里影响画质的关键点：
 3. 已加入颜色稳定、边缘 mask、相似度阈值、FPS 调试。
 
 当前还不能等同 Pro 的地方：
-1. 主换脸仍以 inswapper_128 为核心，源头脸部细节上限低于 256x256 清晰模型。
-2. HyperSwap 256、DFM、遮挡保护、脸型修改还不能直接照搬 Pro 的编译模块。
+1. 主换脸已从 inswapper_128 切到 HyperSwap 256，源头脸部细节上限比 128 模型更高。
+2. DFM、遮挡保护、脸型修改还不能直接照搬 Pro 的编译模块。
 3. 如果目标脸明显大于源脸，边缘不自然不能只靠 OBS 彻底解决，需要更匹配的源图或更高阶模型。
 
 六、下一步优化方向
@@ -104,7 +104,7 @@ Pro 文档里影响画质的关键点：
 
 画面模糊：
 1. 优先换更清晰、更正脸、更接近目标脸型的源图。
-2. 确认启动脚本使用 face_enhancer_gpen256。
+2. 确认启动脚本使用 face_swapper_hyperswap 和 face_enhancer_gpen256。
 3. 不要把 Telegram 选成真实摄像头。
 4. OBS 只能做轻微锐化和颜色稳定，不能把 128 换脸模型变成真正高清模型。
 

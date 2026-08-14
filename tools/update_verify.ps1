@@ -4,6 +4,7 @@ $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $Logs = Join-Path $Root "logs"
 $Report = Join-Path $Logs "update_verify.txt"
 $Failed = $false
+$env:PATH = (Join-Path $Root "ffmpeg\bin") + ";" + (Join-Path $Root "python") + ";" + (Join-Path $Root "python\Scripts") + ";" + $env:PATH
 
 if (!(Test-Path -LiteralPath $Logs)) {
     New-Item -ItemType Directory -Path $Logs | Out-Null
@@ -33,7 +34,9 @@ Check-File "OBS executable" (Join-Path $Root "obs-studio\bin\64bit\obs64.exe")
 Check-File "OBS portable marker" (Join-Path $Root "obs-studio\portable_mode.txt")
 Check-File "inswapper model" (Join-Path $Root "models\inswapper_128.onnx")
 Check-File "inswapper fp16 model" (Join-Path $Root "models\inswapper_128_fp16.onnx")
+Check-File "HyperSwap 256 model" (Join-Path $Root "models\hyperswap_1a_256.onnx")
 Check-File "GPEN-256 model" (Join-Path $Root "models\GPEN-BFR-256.onnx")
+Check-File "HyperSwap processor" (Join-Path $Root "modules\processors\frame\face_swapper_hyperswap.py")
 Check-File "OBS DeepLiveCam scene" (Join-Path $Root "obs-studio\config\obs-studio\basic\scenes\DeepLiveCam.json")
 Check-File "migration plan" (Join-Path $Root "FEATURE_MIGRATION_PLAN.zh-CN.md")
 $UserGuideItem = Get-ChildItem -LiteralPath $Root -Filter "*.txt" -File | Where-Object {
@@ -110,6 +113,7 @@ $HelpText = Get-Content -LiteralPath $HelpOut -Raw
 if ($HelpText -match "--live-fps-debug") { Add-Line "OK --live-fps-debug exposed" } else { Add-Line "ERROR missing --live-fps-debug in run.py help"; $Failed = $true }
 if ($HelpText -match "--similar-face-distance") { Add-Line "OK --similar-face-distance exposed" } else { Add-Line "ERROR missing --similar-face-distance in run.py help"; $Failed = $true }
 if ($HelpText -match "--quality-preset") { Add-Line "OK --quality-preset exposed" } else { Add-Line "ERROR missing --quality-preset in run.py help"; $Failed = $true }
+if ($HelpText -match "face_swapper_hyperswap") { Add-Line "OK HyperSwap processor is exposed" } else { Add-Line "ERROR HyperSwap processor is not exposed"; $Failed = $true }
 
 Add-Line ""
 Add-Line "Checking startup script parameters..."
@@ -117,6 +121,7 @@ if ($StartScriptItem) {
     $StartText = Get-Content -LiteralPath $StartScriptItem.FullName -Raw
     if ($StartText -match "--live-fps-debug") { Add-Line "OK startup script has --live-fps-debug" } else { Add-Line "ERROR startup script missing --live-fps-debug"; $Failed = $true }
     if ($StartText -match "--execution-provider cuda") { Add-Line "OK startup script uses cuda provider" } else { Add-Line "ERROR startup script missing cuda provider"; $Failed = $true }
+    if ($StartText -match "face_swapper_hyperswap") { Add-Line "OK startup script uses HyperSwap 256 swapper" } else { Add-Line "ERROR startup script is not using HyperSwap 256"; $Failed = $true }
     if ($StartText -match "face_enhancer_gpen256") { Add-Line "OK startup script enables GPEN-256 detail enhancer" } else { Add-Line "ERROR startup script missing GPEN-256 detail enhancer"; $Failed = $true }
     if ($StartText -match "--quality-preset balanced") { Add-Line "OK startup script uses balanced quality preset" } else { Add-Line "ERROR startup script missing balanced quality preset"; $Failed = $true }
 } else {
@@ -132,6 +137,34 @@ if ($SceneText -match "Live Preview:Qt625QWindowIcon:python.exe") { Add-Line "OK
 if ($SceneText -match '"x":\s*1280' -and $SceneText -match '"y":\s*720') { Add-Line "OK OBS scene contains 1280x720 sizing" } else { Add-Line "ERROR OBS scene missing 1280x720 sizing"; $Failed = $true }
 if ($SceneText -match "sharpness_filter") { Add-Line "OK OBS sharpen filter found" } else { Add-Line "WARN OBS sharpen filter not found" }
 if ($SceneText -match "color_filter") { Add-Line "OK OBS color filter found" } else { Add-Line "WARN OBS color filter not found" }
+
+Add-Line ""
+Add-Line "Checking HyperSwap ONNX runtime..."
+$HyperSwapCheck = @'
+from pathlib import Path
+import onnxruntime as ort
+root = Path(r"__ROOT__")
+path = root / "models" / "hyperswap_1a_256.onnx"
+session = ort.InferenceSession(str(path), providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
+providers = session.get_providers()
+inputs = {inp.name: inp.shape for inp in session.get_inputs()}
+outputs = {out.name: out.shape for out in session.get_outputs()}
+assert inputs.get("source") == [1, 512], inputs
+assert inputs.get("target") == [1, 3, 256, 256], inputs
+assert outputs.get("output") == [1, 3, 256, 256], outputs
+assert "CUDAExecutionProvider" in providers, providers
+print("OK HyperSwap providers: " + ", ".join(providers))
+'@
+$HyperSwapCheck = $HyperSwapCheck.Replace("__ROOT__", $Root)
+$HyperSwapCheckPath = Join-Path $Logs "hyperswap_onnx_check.py"
+Set-Content -LiteralPath $HyperSwapCheckPath -Encoding UTF8 -Value $HyperSwapCheck
+& $Python $HyperSwapCheckPath *>> $Report
+if ($LASTEXITCODE -eq 0) {
+    Add-Line "OK HyperSwap ONNX IO and CUDA provider passed"
+} else {
+    Add-Line "ERROR HyperSwap ONNX IO/CUDA provider check failed"
+    $Failed = $true
+}
 
 Add-Line ""
 Add-Line "Checking git noise..."
@@ -155,6 +188,7 @@ $CompileFiles = @(
     "modules\face_analyser.py",
     "modules\processors\frame\core.py",
     "modules\processors\frame\face_swapper.py",
+    "modules\processors\frame\face_swapper_hyperswap.py",
     "modules\processors\frame\face_enhancer.py",
     "modules\processors\frame\face_enhancer_gpen256.py",
     "modules\processors\frame\face_enhancer_gpen512.py"
