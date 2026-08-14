@@ -36,7 +36,20 @@ Check-File "inswapper fp16 model" (Join-Path $Root "models\inswapper_128_fp16.on
 Check-File "GPEN-256 model" (Join-Path $Root "models\GPEN-BFR-256.onnx")
 Check-File "OBS DeepLiveCam scene" (Join-Path $Root "obs-studio\config\obs-studio\basic\scenes\DeepLiveCam.json")
 Check-File "migration plan" (Join-Path $Root "FEATURE_MIGRATION_PLAN.zh-CN.md")
-Check-File "user guide" (Join-Path $Root "使用说明.txt")
+$UserGuideItem = Get-ChildItem -LiteralPath $Root -Filter "*.txt" -File | Where-Object {
+    try {
+        $text = Get-Content -LiteralPath $_.FullName -Raw -Encoding UTF8
+        $text -match "DeepLiveCam \+ OBS" -and $text -match "OBS Virtual Camera"
+    } catch {
+        $false
+    }
+} | Select-Object -First 1
+if ($UserGuideItem) {
+    Add-Line "OK user guide: $($UserGuideItem.FullName)"
+} else {
+    Add-Line "ERROR user guide not found by content"
+    $Failed = $true
+}
 
 $BatFiles = Get-ChildItem -LiteralPath $Root -Filter "*.bat" -File
 $StartScriptItem = $BatFiles | Where-Object {
@@ -70,14 +83,20 @@ if ($StopScriptItem) {
 }
 
 $RootBatNames = @($BatFiles | ForEach-Object { $_.Name } | Sort-Object)
-$ExpectedBatNames = @("停止_DeepLiveCam_OBS.bat", "启动_DeepLiveCam_OBS.bat", "更新后自检验证.bat")
-$UnexpectedBatNames = @($RootBatNames | Where-Object { $_ -notin $ExpectedBatNames })
-$MissingBatNames = @($ExpectedBatNames | Where-Object { $_ -notin $RootBatNames })
-if ($UnexpectedBatNames.Count -eq 0 -and $MissingBatNames.Count -eq 0) {
+$SelfCheckScriptItem = $BatFiles | Where-Object {
+    try {
+        $text = Get-Content -LiteralPath $_.FullName -Raw
+        $text -match "tools\\update_verify\.ps1"
+    } catch {
+        $false
+    }
+} | Select-Object -First 1
+if ($RootBatNames.Count -eq 3 -and $StartScriptItem -and $StopScriptItem -and $SelfCheckScriptItem) {
     Add-Line "OK root launcher list is clean: $($RootBatNames -join ', ')"
 } else {
-    if ($UnexpectedBatNames.Count -gt 0) { Add-Line "ERROR unexpected root bat files: $($UnexpectedBatNames -join ', ')"; $Failed = $true }
-    if ($MissingBatNames.Count -gt 0) { Add-Line "ERROR missing root bat files: $($MissingBatNames -join ', ')"; $Failed = $true }
+    Add-Line "ERROR root launcher list is not clean or incomplete: $($RootBatNames -join ', ')"
+    Add-Line "Expected exactly 3 launchers by role: start, stop, self-check"
+    $Failed = $true
 }
 
 $Python = Join-Path $Root "python\python.exe"
