@@ -90,7 +90,7 @@ $sceneConfig = [ordered]@{
                         brightness = 0
                         saturation = 0.04
                         hue_shift = 0
-                        opacity = 1
+                        opacity = 100
                     }
                     mixers = 0
                     sync = 0
