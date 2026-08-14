@@ -1,150 +1,127 @@
-DeepLiveCam + OBS 使用说明
+DeepLiveCam + OBS 最终使用说明
 
-当前最终项目位置：
+项目位置：
 D:\DeepLiveCam2.7-Pro-0730_OSS_READY
 
-一、先说清楚当前逻辑
+一、根目录只用这 3 个入口
 
-现在使用原版 DeepLiveCam UI。
-正确链路是：
+1. 启动：
+启动_DeepLiveCam_OBS.bat
 
-DeepLiveCam 原版页面里选择源脸、选择摄像头、点击直播
-然后 DeepLiveCam 弹出 Live Preview 实时换脸窗口
+2. 停止：
+停止_DeepLiveCam_OBS.bat
+
+3. 自检：
+更新后自检验证.bat
+
+其他修复逻辑已经放到 tools 内部，启动脚本会自动处理 OBS 场景，不需要用户手动点一堆脚本。
+
+二、正确链路
+
+DeepLiveCam 原版 UI 选择源脸图片和摄像头
+点击 Live / 直播
+弹出 Live Preview 换脸窗口
 OBS 捕获 Live Preview
 Telegram 选择 OBS Virtual Camera
 
-也就是说：
-换脸操作在 DeepLiveCam 原版页面里完成。
-OBS 只负责把 DeepLiveCam 的 Live Preview 输出成虚拟摄像头。
+注意：
+OBS 不是换脸软件，只负责把 Live Preview 输出成虚拟摄像头。
+Telegram 里不要选真实摄像头，只选 OBS Virtual Camera。
 
-二、日常启动
+三、日常操作步骤
 
-1. 打开文件夹：
-D:\DeepLiveCam2.7-Pro-0730_OSS_READY
-
-2. 双击：
-生产环境检查.bat
-
-看到下面这些是 OK，说明环境可用：
-OK python runtime
-OK bundled OBS
-OK OBS portable mode marker
-OK source face
-OK inswapper model
-OK nvidia-smi found
-OK OBS Virtual Camera found in DirectShow devices
-OK camera 0 opened
-
-3. 双击：
+1. 双击：
 启动_DeepLiveCam_OBS.bat
 
-它会按顺序打开：
-DeepLiveCam 原版中文 UI
-OBS 便携版
+2. 等待 DeepLiveCam UI 和 OBS 都打开。
 
-三、DeepLiveCam 里怎么操作
+3. 在 DeepLiveCam UI 里点击 Select a face / 选择人脸，选择授权源脸图片。
 
-1. 在 DeepLiveCam 页面点击：
-选择一张脸
+4. 在 DeepLiveCam UI 里选择摄像头。
 
-如果界面有部分英文，按钮名可能显示为：
-Select a face
+5. 点击 Live / 直播。
 
-2. 选择你授权使用的换脸图片。
+6. 确认弹出 Live Preview 窗口，并且里面是换脸后的实时画面。
 
-3. 在 Camera 区域选择摄像头。
-通常选择：
-4k Camera
-或 Camera 0
-
-4. 点击：
-直播
-
-如果界面有部分英文，按钮名可能显示为：
-Live
-
-5. 等待弹出窗口：
-Live Preview
-
-这个 Live Preview 就是 DeepLiveCam 处理后的实时换脸画面。
-
-四、OBS 怎么接
-
-OBS 会自动打开，并使用项目内便携配置。
-
-OBS 当前场景：
-DeepLiveCam
-
-OBS 当前捕获目标：
-Live Preview
-
-你必须先在 DeepLiveCam 里点 Live，让 Live Preview 窗口出现。
-Live Preview 没出现前，OBS 可能是空画面，这是正常的。
-
-五、Telegram 怎么接
-
-在 Telegram 视频通话里选择摄像头：
+7. Telegram 视频通话里选择：
 OBS Virtual Camera
 
-对方看到的应该是 OBS 输出的 DeepLiveCam Live Preview。
+四、当前推荐画质配置
 
-六、停止
+启动脚本当前使用：
+--execution-provider cuda
+--execution-threads 2
+--frame-processor face_swapper face_enhancer_gpen256
+--live-resizable
+--live-fps-debug
+--similar-face-distance 1.5
+--quality-preset balanced
+-l zh
 
-用完后双击：
-停止_DeepLiveCam_OBS.bat
+OBS 当前配置：
+捕获窗口：Live Preview:Qt625QWindowIcon:python.exe
+输出尺寸：1280x720
+锐化滤镜：0.18
+颜色稳定：contrast 0.06，saturation 0.04
 
-七、不要点这些
+五、参照 Pro 文档后的画质判断
 
-不要点 run.py。
-不要点 run-cuda.bat。
-不要打开旧的 DeepFaceLive。
-不要在 Telegram 里选择普通摄像头。
-Telegram 里只选 OBS Virtual Camera。
+参照资料：
+https://aixplore.cc/posts/deep-live-cam-2-7-pro-face-swap/
 
-八、如果 OBS 没画面
+Pro 文档里影响画质的关键点：
+1. 256x256 换脸模型比 inswapper_128 更清晰。
+2. GFPGAN / GPEN 可以叠加在人脸上做高清增强。
+3. 直播保护包含轮廓柔化、预防掉脸、遮挡保护。
+4. 脸型修改可以改善源脸和目标脸尺寸不匹配导致的边缘穿模。
 
-按顺序检查：
+当前 OSS_READY 已实现或接近实现：
+1. GPEN-256 实时增强已接入，作为当前稳定默认方案。
+2. OBS 输出已经固定为 1280x720，并且只捕获 Live Preview。
+3. 已加入颜色稳定、边缘 mask、相似度阈值、FPS 调试。
 
-1. DeepLiveCam 原版页面是否已经打开
-2. 是否已经选择源脸图片
-3. 是否已经选择摄像头
-4. 是否已经点击直播/Live
-5. 是否出现 Live Preview 窗口
-6. OBS 是否在捕获 Live Preview
-7. Telegram 是否选择 OBS Virtual Camera
+当前还不能等同 Pro 的地方：
+1. 主换脸仍以 inswapper_128 为核心，源头脸部细节上限低于 256x256 清晰模型。
+2. HyperSwap 256、DFM、遮挡保护、脸型修改还不能直接照搬 Pro 的编译模块。
+3. 如果目标脸明显大于源脸，边缘不自然不能只靠 OBS 彻底解决，需要更匹配的源图或更高阶模型。
 
-九、换电脑使用
+六、下一步优化方向
 
-把整个文件夹复制到新电脑：
+优先顺序：
+1. 先稳定当前链路：Live Preview -> OBS -> Telegram。
+2. 用同一段光线、同一张源图测试 GPEN-256、GPEN-512、GFPGAN 的实际 FPS 和清晰度。
+3. 如果当前电脑卡顿，回到 GPEN-256；如果性能足够，再尝试 GPEN-512 或 GFPGAN。
+4. 如果主要问题是脸型/边缘穿模，优先更换更接近目标脸角度和脸型的授权源图。
+5. 如果单图方案仍达不到真实要求，再进入 DFM 或 256 换脸模型路线。
+
+七、故障处理
+
+没有画面：
+1. 先确认 DeepLiveCam 已经点 Live / 直播。
+2. 确认 Live Preview 窗口已经出现。
+3. 关闭所有程序，双击 停止_DeepLiveCam_OBS.bat。
+4. 再双击 启动_DeepLiveCam_OBS.bat。
+
+画面模糊：
+1. 优先换更清晰、更正脸、更接近目标脸型的源图。
+2. 确认启动脚本使用 face_enhancer_gpen256。
+3. 不要把 Telegram 选成真实摄像头。
+4. OBS 只能做轻微锐化和颜色稳定，不能把 128 换脸模型变成真正高清模型。
+
+卡顿：
+1. 关闭其他占 GPU 的软件。
+2. 使用当前默认 balanced。
+3. 如果仍卡，后续改成只用 face_swapper 或降低窗口分辨率。
+
+八、换电脑
+
+复制整个文件夹即可：
 D:\DeepLiveCam2.7-Pro-0730_OSS_READY
 
-新电脑先运行：
-生产环境检查.bat
-
-检查通过后运行：
-启动_DeepLiveCam_OBS.bat
-
-新电脑必须有：
-Windows 系统
+新电脑需要：
+Windows
 NVIDIA 显卡和驱动
 可用摄像头
-OBS Virtual Camera 能被视频软件识别
+OBS Virtual Camera 可被 Telegram 识别
 
-十、日志位置
-
-操作记录：
-D:\DeepLiveCam2.7-Pro-0730_OSS_READY\logs\operation_log.txt
-
-生产环境检查报告：
-D:\DeepLiveCam2.7-Pro-0730_OSS_READY\logs\production_check.txt
-
-十一、当前说明
-
-OBS 已放在同一目录：
-D:\DeepLiveCam2.7-Pro-0730_OSS_READY\obs-studio
-
-OBS 使用便携模式，配置在：
-D:\DeepLiveCam2.7-Pro-0730_OSS_READY\obs-studio\config\obs-studio
-
-旧授权限制版本已经删除。
-现在不再依赖 E:\AI\DeepFaceLive 作为启动目录。
+脚本使用相对路径，不强制必须放在 D 盘。
