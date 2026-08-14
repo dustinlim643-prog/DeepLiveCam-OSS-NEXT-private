@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 import platform
 import queue
+import pyvirtualcam
 import sys
 import tempfile
 import threading
@@ -1224,6 +1225,9 @@ class WebcamPreviewWindow(QWidget):
         )
         self._capture_worker.start()
         self._processing_worker.start()
+        self._virtual_cam = None
+        self._virtual_cam_size = None
+        self._virtual_cam_fps = max(1, min(30, int(round(camera_fps or 30))))
 
         # Poll at ~2x camera fps so we never block but also don't burn CPU.
         poll_ms = max(1, min(16, int(500 / max(camera_fps, 1))))
@@ -1241,6 +1245,8 @@ class WebcamPreviewWindow(QWidget):
             return
         bgr_frame = fit_image_to_size(bgr_frame, self.width(), self.height())
         self._image_label.setPixmap(_bgr_to_qpixmap(bgr_frame))
+        if getattr(modules.globals, "live_virtualcam_output", True):
+            self._send_to_virtualcam(bgr_frame)
         if getattr(modules.globals, "live_obs_output_window", True):
             try:
                 cv2.namedWindow("OBS Output", cv2.WINDOW_NORMAL)
@@ -1249,6 +1255,35 @@ class WebcamPreviewWindow(QWidget):
                 cv2.waitKey(1)
             except Exception as e:
                 print(f"[webcam] OBS Output window update failed: {e}")
+
+    def _send_to_virtualcam(self, bgr_frame: np.ndarray) -> None:
+        try:
+            output_frame = fit_image_to_size(
+                bgr_frame, PREVIEW_DEFAULT_WIDTH, PREVIEW_DEFAULT_HEIGHT
+            )
+            h, w = output_frame.shape[:2]
+            if self._virtual_cam is None or self._virtual_cam_size != (w, h):
+                if self._virtual_cam is not None:
+                    self._virtual_cam.close()
+                self._virtual_cam = pyvirtualcam.Camera(
+                    width=w,
+                    height=h,
+                    fps=self._virtual_cam_fps,
+                    fmt=pyvirtualcam.PixelFormat.RGB,
+                    backend="obs",
+                )
+                self._virtual_cam_size = (w, h)
+                print(f"[webcam] Direct OBS Virtual Camera output: {w}x{h}@{self._virtual_cam_fps}")
+            self._virtual_cam.send(output_frame[:, :, ::-1])
+        except Exception as e:
+            if self._virtual_cam is not None:
+                try:
+                    self._virtual_cam.close()
+                except Exception:
+                    pass
+            self._virtual_cam = None
+            self._virtual_cam_size = None
+            print(f"[webcam] Direct OBS Virtual Camera output failed: {e}")
 
     def closeEvent(self, event) -> None:
         self._stop_event.set()
@@ -1265,6 +1300,12 @@ class WebcamPreviewWindow(QWidget):
             self._cap.release()
         except Exception:
             pass
+        if self._virtual_cam is not None:
+            try:
+                self._virtual_cam.close()
+            except Exception:
+                pass
+            self._virtual_cam = None
         try:
             cv2.destroyWindow("OBS Output")
         except Exception:

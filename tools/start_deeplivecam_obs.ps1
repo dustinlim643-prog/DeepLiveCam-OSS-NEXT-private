@@ -32,6 +32,20 @@ $env:PATH = (Join-Path $Root "ffmpeg\bin") + ";" + (Join-Path $Root "python") + 
 
 Stop-ProjectProcess @("python.exe", "pythonw.exe")
 Get-CimInstance Win32_Process | Where-Object {
+    ($_.Name -in @("obs64.exe", "obs32.exe", "obs.exe")) -and ($_.ExecutablePath -like ($Root.TrimEnd("\") + "*"))
+} | ForEach-Object {
+    $p = Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
+    if ($p) {
+        $null = $p.CloseMainWindow()
+    }
+}
+Start-Sleep -Seconds 3
+Get-CimInstance Win32_Process | Where-Object {
+    ($_.Name -in @("obs64.exe", "obs32.exe", "obs.exe")) -and ($_.ExecutablePath -like ($Root.TrimEnd("\") + "*"))
+} | ForEach-Object {
+    Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+}
+Get-CimInstance Win32_Process | Where-Object {
     ($_.Name -eq "powershell.exe") -and ($_.CommandLine -like "*wait_for_live_preview_and_restart_obs.ps1*")
 } | ForEach-Object {
     Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
@@ -64,14 +78,8 @@ $DeepLiveArgs = @(
     "--quality-preset", "high_quality",
     "--live-xseg-mask",
     "--live-obs-output-window",
+    "--live-virtualcam-output",
     "-l", "zh"
 )
 Start-Process -FilePath $Python -ArgumentList $DeepLiveArgs -WorkingDirectory $Root
-Add-OperationLog "DeepLiveCam original UI started"
-
-Start-Process -FilePath "powershell.exe" -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", $Watcher) -WindowStyle Hidden
-Add-OperationLog "OBS watcher started"
-
-Start-Sleep -Seconds 5
-Start-Process -FilePath $ObsExe -ArgumentList @("--portable", "--collection", "DeepLiveCam", "--scene", "DeepLiveCam", "--startvirtualcam") -WorkingDirectory $ObsDir
-Add-OperationLog "OBS started for Live Preview capture"
+Add-OperationLog "DeepLiveCam original UI started with direct OBS Virtual Camera output"

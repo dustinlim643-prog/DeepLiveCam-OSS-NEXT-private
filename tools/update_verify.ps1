@@ -122,6 +122,7 @@ if ($HelpText -match "--live-face-smooth") { Add-Line "OK --live-face-smooth exp
 if ($HelpText -match "--live-face-fit-scale") { Add-Line "OK --live-face-fit-scale exposed" } else { Add-Line "ERROR missing --live-face-fit-scale in run.py help"; $Failed = $true }
 if ($HelpText -match "--live-xseg-mask") { Add-Line "OK --live-xseg-mask exposed" } else { Add-Line "ERROR missing --live-xseg-mask in run.py help"; $Failed = $true }
 if ($HelpText -match "--live-obs-output-window") { Add-Line "OK --live-obs-output-window exposed" } else { Add-Line "ERROR missing --live-obs-output-window in run.py help"; $Failed = $true }
+if ($HelpText -match "--live-virtualcam-output") { Add-Line "OK --live-virtualcam-output exposed" } else { Add-Line "ERROR missing --live-virtualcam-output in run.py help"; $Failed = $true }
 
 Add-Line ""
 Add-Line "Checking startup script parameters..."
@@ -136,7 +137,7 @@ if ($StartScriptItem) {
     if ($StartText -match "--quality-preset" -and $StartText -match '"high_quality"') { Add-Line "OK startup script uses high_quality preset" } else { Add-Line "ERROR startup script missing high_quality preset"; $Failed = $true }
     if ($StartText -match "--live-xseg-mask") { Add-Line "OK startup script enables XSeg mask" } else { Add-Line "ERROR startup script missing XSeg mask"; $Failed = $true }
     if ($StartText -match "--live-obs-output-window") { Add-Line "OK startup script enables OBS output window" } else { Add-Line "ERROR startup script missing OBS output window"; $Failed = $true }
-    if ($StartText -match "wait_for_live_preview_and_restart_obs\.ps1") { Add-Line "OK startup script refreshes OBS after OBS Output appears" } else { Add-Line "ERROR startup script missing OBS Output watcher"; $Failed = $true }
+    if ($StartText -match "--live-virtualcam-output") { Add-Line "OK startup script enables direct OBS Virtual Camera output" } else { Add-Line "ERROR startup script missing direct OBS Virtual Camera output"; $Failed = $true }
 } else {
     Add-Line "ERROR startup script parameter check skipped because start script was not found"
     $Failed = $true
