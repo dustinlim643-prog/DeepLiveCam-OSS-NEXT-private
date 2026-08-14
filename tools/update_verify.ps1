@@ -37,6 +37,7 @@ Check-File "inswapper fp16 model" (Join-Path $Root "models\inswapper_128_fp16.on
 Check-File "HyperSwap 256 model" (Join-Path $Root "models\hyperswap_1a_256.onnx")
 Check-File "GPEN-256 model" (Join-Path $Root "models\GPEN-BFR-256.onnx")
 Check-File "HyperSwap processor" (Join-Path $Root "modules\processors\frame\face_swapper_hyperswap.py")
+Check-File "OBS Live Preview watcher" (Join-Path $Root "tools\wait_for_live_preview_and_restart_obs.ps1")
 Check-File "OBS DeepLiveCam scene" (Join-Path $Root "obs-studio\config\obs-studio\basic\scenes\DeepLiveCam.json")
 Check-File "migration plan" (Join-Path $Root "FEATURE_MIGRATION_PLAN.zh-CN.md")
 $UserGuideItem = Get-ChildItem -LiteralPath $Root -Filter "*.txt" -File | Where-Object {
@@ -124,6 +125,7 @@ if ($StartScriptItem) {
     if ($StartText -match "face_swapper_hyperswap") { Add-Line "OK startup script uses HyperSwap 256 swapper" } else { Add-Line "ERROR startup script is not using HyperSwap 256"; $Failed = $true }
     if ($StartText -match "face_enhancer_gpen256") { Add-Line "OK startup script enables GPEN-256 detail enhancer" } else { Add-Line "ERROR startup script missing GPEN-256 detail enhancer"; $Failed = $true }
     if ($StartText -match "--quality-preset balanced") { Add-Line "OK startup script uses balanced quality preset" } else { Add-Line "ERROR startup script missing balanced quality preset"; $Failed = $true }
+    if ($StartText -match "wait_for_live_preview_and_restart_obs\.ps1") { Add-Line "OK startup script refreshes OBS after Live Preview appears" } else { Add-Line "ERROR startup script missing OBS Live Preview watcher"; $Failed = $true }
 } else {
     Add-Line "ERROR startup script parameter check skipped because start script was not found"
     $Failed = $true
@@ -195,6 +197,24 @@ $CompileFiles = @(
 )
 & $Python -m py_compile @CompileFiles *>> $Report
 if ($LASTEXITCODE -eq 0) { Add-Line "OK Python compile passed" } else { Add-Line "ERROR Python compile failed"; $Failed = $true }
+
+Add-Line ""
+Add-Line "Checking PowerShell script syntax..."
+$PsScripts = @(
+    "tools\reset_obs_scene.ps1",
+    "tools\update_verify.ps1",
+    "tools\wait_for_live_preview_and_restart_obs.ps1"
+)
+foreach ($PsScript in $PsScripts) {
+    $PsPath = Join-Path $Root $PsScript
+    try {
+        $null = [System.Management.Automation.Language.Parser]::ParseFile($PsPath, [ref]$null, [ref]$null)
+        Add-Line "OK PowerShell syntax: $PsScript"
+    } catch {
+        Add-Line "ERROR PowerShell syntax failed: $PsScript - $($_.Exception.Message)"
+        $Failed = $true
+    }
+}
 
 Add-Line ""
 if ($Failed) {

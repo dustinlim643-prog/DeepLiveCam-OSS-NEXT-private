@@ -63,6 +63,7 @@ OBS 当前配置：
 输出尺寸：1280x720
 锐化滤镜：0.18
 颜色稳定：contrast 0.06，saturation 0.04
+OBS watcher：启动脚本会等待 Live Preview 出现，然后自动刷新一次 OBS 捕获，避免 OBS 过早启动导致黑屏。
 
 五、参照 Pro 文档后的画质判断
 
@@ -99,8 +100,8 @@ Pro 文档里影响画质的关键点：
 没有画面：
 1. 先确认 DeepLiveCam 已经点 Live / 直播。
 2. 确认 Live Preview 窗口已经出现。
-3. 关闭所有程序，双击 停止_DeepLiveCam_OBS.bat。
-4. 再双击 启动_DeepLiveCam_OBS.bat。
+3. 等 3-5 秒，启动脚本里的 OBS watcher 会自动重启 OBS 捕获。
+4. 如果仍没有画面，双击 停止_DeepLiveCam_OBS.bat 后重新启动。
 
 画面模糊：
 1. 优先换更清晰、更正脸、更接近目标脸型的源图。
