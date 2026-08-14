@@ -11,6 +11,7 @@ set "PATH=%ROOT%ffmpeg\bin;%ROOT%python;%ROOT%python\Scripts;%PATH%"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Add-Content -LiteralPath ($env:ROOT + 'logs\operation_log.txt') -Encoding UTF8 -Value ((Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + ' start LOW LATENCY UI + OBS requested')"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Process python,pythonw -ErrorAction SilentlyContinue | Where-Object { $_.Path -like ($env:ROOT + '*') } | Stop-Process -Force -ErrorAction SilentlyContinue"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Remove-Item -LiteralPath ($env:ROOT + 'obs-studio\config\obs-studio\.sentinel') -Recurse -Force -ErrorAction SilentlyContinue"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%tools\reset_obs_scene.ps1"
 
 if not exist "%ROOT%python\python.exe" (
     echo Python runtime not found: %ROOT%python\python.exe
