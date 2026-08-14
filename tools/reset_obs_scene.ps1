@@ -28,10 +28,10 @@ $sceneConfig = [ordered]@{
             settings = [ordered]@{
                 priority = 1
                 window = "Live Preview:Qt625QWindowIcon:python.exe"
-                method = 2
+                method = 1
                 cursor = $false
-                compatibility = $false
-                client_area = $true
+                compatibility = $true
+                client_area = $false
             }
             mixers = 0
             sync = 0

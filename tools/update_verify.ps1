@@ -145,6 +145,7 @@ Add-Line "Checking OBS capture target..."
 $ScenePath = Join-Path $Root "obs-studio\config\obs-studio\basic\scenes\DeepLiveCam.json"
 $SceneText = if (Test-Path -LiteralPath $ScenePath) { Get-Content -LiteralPath $ScenePath -Raw } else { "" }
 if ($SceneText -match "Live Preview:Qt625QWindowIcon:python.exe") { Add-Line "OK OBS targets Live Preview" } else { Add-Line "ERROR OBS scene is not targeting Live Preview"; $Failed = $true }
+if ($SceneText -match '"method":\s*1') { Add-Line "OK OBS window capture uses BitBlt compatibility mode" } else { Add-Line "ERROR OBS window capture is not using BitBlt compatibility mode"; $Failed = $true }
 if ($SceneText -match '"x":\s*1280' -and $SceneText -match '"y":\s*720') { Add-Line "OK OBS scene contains 1280x720 sizing" } else { Add-Line "ERROR OBS scene missing 1280x720 sizing"; $Failed = $true }
 if ($SceneText -match "sharpness_filter") { Add-Line "OK OBS sharpen filter found" } else { Add-Line "WARN OBS sharpen filter not found" }
 if ($SceneText -match "color_filter") { Add-Line "OK OBS color filter found" } else { Add-Line "WARN OBS color filter not found" }
