@@ -187,6 +187,63 @@ def detect_many_faces_fast(frame: Frame) -> Any:
             for i in range(bboxes.shape[0])]
 
 
+def _bbox_iou(a: Any, b: Any) -> float:
+    if a is None or b is None:
+        return 0.0
+    ax1, ay1, ax2, ay2 = [float(x) for x in a]
+    bx1, by1, bx2, by2 = [float(x) for x in b]
+    ix1, iy1 = max(ax1, bx1), max(ay1, by1)
+    ix2, iy2 = min(ax2, bx2), min(ay2, by2)
+    iw, ih = max(0.0, ix2 - ix1), max(0.0, iy2 - iy1)
+    inter = iw * ih
+    area_a = max(0.0, ax2 - ax1) * max(0.0, ay2 - ay1)
+    area_b = max(0.0, bx2 - bx1) * max(0.0, by2 - by1)
+    denom = area_a + area_b - inter
+    return inter / denom if denom > 0 else 0.0
+
+
+def _bbox_area(face: Any) -> float:
+    if face is None or getattr(face, "bbox", None) is None:
+        return 0.0
+    x1, y1, x2, y2 = [float(x) for x in face.bbox]
+    return max(0.0, x2 - x1) * max(0.0, y2 - y1)
+
+
+def select_tracked_single_face(frame: Frame, previous_face: Any = None) -> Any:
+    """Select one live face with temporal tracking and jitter damping."""
+    faces = detect_many_faces_fast(frame)
+    if not faces:
+        return None
+
+    selected = None
+    if previous_face is not None and getattr(previous_face, "bbox", None) is not None:
+        threshold = float(getattr(modules.globals, "live_face_iou_threshold", 0.12))
+        ranked = sorted(
+            ((face, _bbox_iou(face.bbox, previous_face.bbox)) for face in faces),
+            key=lambda item: item[1],
+            reverse=True,
+        )
+        if ranked and ranked[0][1] >= threshold:
+            selected = ranked[0][0]
+
+    if selected is None:
+        selected = max(faces, key=_bbox_area)
+
+    if (
+        previous_face is not None
+        and getattr(previous_face, "bbox", None) is not None
+        and getattr(previous_face, "kps", None) is not None
+        and getattr(selected, "kps", None) is not None
+    ):
+        iou = _bbox_iou(selected.bbox, previous_face.bbox)
+        smooth = float(getattr(modules.globals, "live_face_smooth", 0.35))
+        if iou > 0.45 and smooth > 0:
+            selected.bbox = selected.bbox.astype("float32") * (1.0 - smooth) + previous_face.bbox.astype("float32") * smooth
+            selected.kps = selected.kps.astype("float32") * (1.0 - smooth) + previous_face.kps.astype("float32") * smooth
+
+    return selected
+
+
 def ensure_landmarks(frame: Frame, faces: Any) -> None:
     """Run the 2d106 landmark model in-place on faces that lack it.
 

@@ -115,6 +115,8 @@ if ($HelpText -match "--live-fps-debug") { Add-Line "OK --live-fps-debug exposed
 if ($HelpText -match "--similar-face-distance") { Add-Line "OK --similar-face-distance exposed" } else { Add-Line "ERROR missing --similar-face-distance in run.py help"; $Failed = $true }
 if ($HelpText -match "--quality-preset") { Add-Line "OK --quality-preset exposed" } else { Add-Line "ERROR missing --quality-preset in run.py help"; $Failed = $true }
 if ($HelpText -match "face_swapper_hyperswap") { Add-Line "OK HyperSwap processor is exposed" } else { Add-Line "ERROR HyperSwap processor is not exposed"; $Failed = $true }
+if ($HelpText -match "--live-face-smooth") { Add-Line "OK --live-face-smooth exposed" } else { Add-Line "ERROR missing --live-face-smooth in run.py help"; $Failed = $true }
+if ($HelpText -match "--live-face-fit-scale") { Add-Line "OK --live-face-fit-scale exposed" } else { Add-Line "ERROR missing --live-face-fit-scale in run.py help"; $Failed = $true }
 
 Add-Line ""
 Add-Line "Checking startup script parameters..."
@@ -123,7 +125,9 @@ if ($StartScriptItem) {
     if ($StartText -match "--live-fps-debug") { Add-Line "OK startup script has --live-fps-debug" } else { Add-Line "ERROR startup script missing --live-fps-debug"; $Failed = $true }
     if ($StartText -match "--execution-provider cuda") { Add-Line "OK startup script uses cuda provider" } else { Add-Line "ERROR startup script missing cuda provider"; $Failed = $true }
     if ($StartText -match "face_swapper_hyperswap") { Add-Line "OK startup script uses HyperSwap 256 swapper" } else { Add-Line "ERROR startup script is not using HyperSwap 256"; $Failed = $true }
-    if ($StartText -match "face_enhancer_gpen256") { Add-Line "OK startup script enables GPEN-256 detail enhancer" } else { Add-Line "ERROR startup script missing GPEN-256 detail enhancer"; $Failed = $true }
+    if ($StartText -notmatch "face_enhancer_gpen256") { Add-Line "OK startup script leaves GPEN disabled by default for FPS" } else { Add-Line "ERROR startup script should not enable GPEN by default"; $Failed = $true }
+    if ($StartText -match "--live-face-smooth 0\.35") { Add-Line "OK startup script enables single-face smoothing" } else { Add-Line "ERROR startup script missing live face smoothing"; $Failed = $true }
+    if ($StartText -match "--live-face-fit-scale 1\.06") { Add-Line "OK startup script enables face fit scale" } else { Add-Line "ERROR startup script missing face fit scale"; $Failed = $true }
     if ($StartText -match "--quality-preset balanced") { Add-Line "OK startup script uses balanced quality preset" } else { Add-Line "ERROR startup script missing balanced quality preset"; $Failed = $true }
     if ($StartText -match "wait_for_live_preview_and_restart_obs\.ps1") { Add-Line "OK startup script refreshes OBS after Live Preview appears" } else { Add-Line "ERROR startup script missing OBS Live Preview watcher"; $Failed = $true }
 } else {
@@ -186,6 +190,7 @@ Add-Line "Checking Python syntax..."
 $CompileFiles = @(
     "modules\globals.py",
     "modules\core.py",
+    "modules\face_analyser.py",
     "modules\ui.py",
     "modules\face_analyser.py",
     "modules\processors\frame\core.py",

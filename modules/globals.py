@@ -43,6 +43,9 @@ webcam_preview_running: bool = False
 show_fps: bool = False
 live_fps_debug: bool = False
 similar_face_distance: float = 1.5
+live_single_face_tracking: bool = True
+live_face_iou_threshold: float = 0.12
+live_face_smooth: float = 0.35
 
 # System Configuration
 max_memory: int | None = None        # Memory limit in GB? (Needs clarification)
@@ -62,6 +65,7 @@ quality_preset: str = "balanced"
 face_mask_scale: float = 0.44
 face_mask_blur: int = 31
 color_transfer_strength: float = 0.35
+face_fit_scale: float = 1.06
 
 # Mouth Mask Options
 mouth_mask: bool = False           # Enable mouth area masking/pasting

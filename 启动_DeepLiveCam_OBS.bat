@@ -26,7 +26,7 @@ if not exist "%ROOT%ffmpeg\bin\ffmpeg.exe" (
     exit /b 1
 )
 
-start "DeepLiveCam UI" "%ROOT%python\python.exe" "%ROOT%run.py" --execution-provider cuda --execution-threads 2 --frame-processor face_swapper_hyperswap face_enhancer_gpen256 --live-resizable --live-fps-debug --similar-face-distance 1.5 --quality-preset balanced -l zh
+start "DeepLiveCam UI" "%ROOT%python\python.exe" "%ROOT%run.py" --execution-provider cuda --execution-threads 2 --frame-processor face_swapper_hyperswap --live-resizable --live-fps-debug --similar-face-distance 1.5 --live-face-smooth 0.35 --live-face-fit-scale 1.06 --quality-preset balanced -l zh
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Add-Content -LiteralPath ($env:ROOT + 'logs\operation_log.txt') -Encoding UTF8 -Value ((Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + ' DeepLiveCam original UI started')"
 
 start "OBS Live Preview Watcher" powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%ROOT%tools\wait_for_live_preview_and_restart_obs.ps1"

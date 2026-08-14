@@ -106,6 +106,11 @@ def _warmup_session(session: onnxruntime.InferenceSession) -> None:
 
 
 def _estimate_affine(face_landmark_5: np.ndarray, crop_size: int) -> np.ndarray:
+    fit_scale = float(getattr(modules.globals, "face_fit_scale", 1.06))
+    fit_scale = max(0.96, min(1.18, fit_scale))
+    if abs(fit_scale - 1.0) > 0.001:
+        center = face_landmark_5.astype(np.float32).mean(axis=0, keepdims=True)
+        face_landmark_5 = center + (face_landmark_5.astype(np.float32) - center) * fit_scale
     dst = WARP_TEMPLATE_ARCFACE_128 * crop_size
     matrix = cv2.estimateAffinePartial2D(
         face_landmark_5.astype(np.float32),

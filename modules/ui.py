@@ -63,6 +63,7 @@ from modules.face_analyser import (
     get_unique_faces_from_target_image,
     get_unique_faces_from_target_video,
     has_valid_map,
+    select_tracked_single_face,
     simplify_maps,
 )
 from modules.gettext import LanguageManager
@@ -1058,7 +1059,7 @@ class _ProcessingWorker(QThread):
         det_count = 0
         cached_target_face = None
         cached_many_faces = None
-        det_interval = max(1, round(self._fps * 0.08))
+        det_interval = 1
 
         while not self._stop.is_set():
             try:
@@ -1084,7 +1085,10 @@ class _ProcessingWorker(QThread):
                         cached_target_face = None
                         cached_many_faces = detect_many_faces_fast(temp_frame)
                     else:
-                        cached_target_face = detect_one_face_fast(temp_frame)
+                        if getattr(modules.globals, "live_single_face_tracking", True):
+                            cached_target_face = select_tracked_single_face(temp_frame, cached_target_face)
+                        else:
+                            cached_target_face = detect_one_face_fast(temp_frame)
                         cached_many_faces = None
 
                 cached_faces = None
