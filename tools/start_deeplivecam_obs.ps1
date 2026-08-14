@@ -78,8 +78,15 @@ $DeepLiveArgs = @(
     "--quality-preset", "high_quality",
     "--live-xseg-mask",
     "--live-obs-output-window",
-    "--live-virtualcam-output",
+    "--no-live-virtualcam-output",
     "-l", "zh"
 )
 Start-Process -FilePath $Python -ArgumentList $DeepLiveArgs -WorkingDirectory $Root
-Add-OperationLog "DeepLiveCam original UI started with direct OBS Virtual Camera output"
+Add-OperationLog "DeepLiveCam original UI started for OBS window capture"
+
+Start-Process -FilePath "powershell.exe" -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", $Watcher) -WindowStyle Hidden
+Add-OperationLog "OBS watcher started"
+
+Start-Sleep -Seconds 5
+Start-Process -FilePath $ObsExe -ArgumentList @("--portable", "--collection", "DeepLiveCam", "--scene", "DeepLiveCam", "--startvirtualcam") -WorkingDirectory $ObsDir
+Add-OperationLog "OBS started for OBS Output capture"

@@ -1192,6 +1192,14 @@ class _ProcessingWorker(QThread):
 class WebcamPreviewWindow(QWidget):
     def __init__(self, camera_index: int):
         super().__init__()
+        self._cap = None
+        self._capture_worker = None
+        self._processing_worker = None
+        self._timer = None
+        self._stop_event = threading.Event()
+        self._virtual_cam = None
+        self._virtual_cam_size = None
+        self._virtual_cam_fps = 30
         self.setWindowTitle("Live Preview")
         self.resize(PREVIEW_DEFAULT_WIDTH, PREVIEW_DEFAULT_HEIGHT)
         layout = QVBoxLayout(self)
@@ -1215,7 +1223,6 @@ class WebcamPreviewWindow(QWidget):
 
         self._capture_queue: queue.Queue = queue.Queue(maxsize=2)
         self._processed_queue: queue.Queue = queue.Queue(maxsize=2)
-        self._stop_event = threading.Event()
 
         self._capture_worker = _CaptureWorker(
             self._cap, self._capture_queue, self._stop_event
@@ -1225,8 +1232,6 @@ class WebcamPreviewWindow(QWidget):
         )
         self._capture_worker.start()
         self._processing_worker.start()
-        self._virtual_cam = None
-        self._virtual_cam_size = None
         self._virtual_cam_fps = max(1, min(30, int(round(camera_fps or 30))))
 
         # Poll at ~2x camera fps so we never block but also don't burn CPU.
@@ -1286,18 +1291,22 @@ class WebcamPreviewWindow(QWidget):
             print(f"[webcam] Direct OBS Virtual Camera output failed: {e}")
 
     def closeEvent(self, event) -> None:
-        self._stop_event.set()
+        if hasattr(self, "_stop_event") and self._stop_event is not None:
+            self._stop_event.set()
         try:
-            self._timer.stop()
+            if self._timer is not None:
+                self._timer.stop()
         except Exception:
             pass
         for worker in (self._capture_worker, self._processing_worker):
             try:
-                worker.wait(2000)
+                if worker is not None:
+                    worker.wait(2000)
             except Exception:
                 pass
         try:
-            self._cap.release()
+            if self._cap is not None:
+                self._cap.release()
         except Exception:
             pass
         if self._virtual_cam is not None:

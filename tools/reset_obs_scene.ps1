@@ -28,10 +28,10 @@ $sceneConfig = [ordered]@{
             settings = [ordered]@{
                 priority = 1
                 window = "OBS Output:HighGUI class:python.exe"
-                method = 1
+                method = 2
                 cursor = $false
-                compatibility = $true
-                client_area = $false
+                compatibility = $false
+                client_area = $true
             }
             mixers = 0
             sync = 0

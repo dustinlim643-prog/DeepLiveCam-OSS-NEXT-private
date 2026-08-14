@@ -137,7 +137,8 @@ if ($StartScriptItem) {
     if ($StartText -match "--quality-preset" -and $StartText -match '"high_quality"') { Add-Line "OK startup script uses high_quality preset" } else { Add-Line "ERROR startup script missing high_quality preset"; $Failed = $true }
     if ($StartText -match "--live-xseg-mask") { Add-Line "OK startup script enables XSeg mask" } else { Add-Line "ERROR startup script missing XSeg mask"; $Failed = $true }
     if ($StartText -match "--live-obs-output-window") { Add-Line "OK startup script enables OBS output window" } else { Add-Line "ERROR startup script missing OBS output window"; $Failed = $true }
-    if ($StartText -match "--live-virtualcam-output") { Add-Line "OK startup script enables direct OBS Virtual Camera output" } else { Add-Line "ERROR startup script missing direct OBS Virtual Camera output"; $Failed = $true }
+    if ($StartText -match "--no-live-virtualcam-output") { Add-Line "OK startup script disables direct OBS Virtual Camera output" } else { Add-Line "ERROR startup script should disable direct OBS Virtual Camera output"; $Failed = $true }
+    if ($StartText -match "wait_for_live_preview_and_restart_obs\.ps1") { Add-Line "OK startup script refreshes OBS after OBS Output appears" } else { Add-Line "ERROR startup script missing OBS Output watcher"; $Failed = $true }
 } else {
     Add-Line "ERROR startup script parameter check skipped because start script was not found"
     $Failed = $true
@@ -148,7 +149,7 @@ Add-Line "Checking OBS capture target..."
 $ScenePath = Join-Path $Root "obs-studio\config\obs-studio\basic\scenes\DeepLiveCam.json"
 $SceneText = if (Test-Path -LiteralPath $ScenePath) { Get-Content -LiteralPath $ScenePath -Raw } else { "" }
 if ($SceneText -match "OBS Output:HighGUI class:python.exe") { Add-Line "OK OBS targets OBS Output" } else { Add-Line "ERROR OBS scene is not targeting OBS Output"; $Failed = $true }
-if ($SceneText -match '"method":\s*1') { Add-Line "OK OBS window capture uses BitBlt compatibility mode" } else { Add-Line "ERROR OBS window capture is not using BitBlt compatibility mode"; $Failed = $true }
+if ($SceneText -match '"method":\s*2') { Add-Line "OK OBS window capture uses WGC mode for OBS Output" } else { Add-Line "ERROR OBS window capture is not using WGC mode"; $Failed = $true }
 if ($SceneText -match '"x":\s*1280' -and $SceneText -match '"y":\s*720') { Add-Line "OK OBS scene contains 1280x720 sizing" } else { Add-Line "ERROR OBS scene missing 1280x720 sizing"; $Failed = $true }
 if ($SceneText -match "DeepLiveCam OBS Output") { Add-Line "OK OBS source is named for OBS Output" } else { Add-Line "ERROR OBS source is not named for OBS Output"; $Failed = $true }
 if ($SceneText -match "sharpness_filter") { Add-Line "OK OBS sharpen filter found" } else { Add-Line "WARN OBS sharpen filter not found" }
