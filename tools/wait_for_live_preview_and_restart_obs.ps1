@@ -14,19 +14,42 @@ function Write-OpLog($Text) {
     Add-Content -LiteralPath $LogPath -Encoding UTF8 -Value ((Get-Date -Format "yyyy-MM-dd HH:mm:ss") + " " + $Text)
 }
 
-Write-OpLog "OBS watcher waiting for Live Preview"
+Add-Type @'
+using System;
+using System.Text;
+using System.Runtime.InteropServices;
+public class ObsWindowFinder {
+  public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+  [DllImport("user32.dll")] public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+  [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
+  [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
+}
+'@
+
+function Test-ObsOutputWindow {
+    $found = $false
+    [ObsWindowFinder]::EnumWindows({
+        param($handle, $param)
+        if (![ObsWindowFinder]::IsWindowVisible($handle)) {
+            return $true
+        }
+        $title = New-Object System.Text.StringBuilder 256
+        [void][ObsWindowFinder]::GetWindowText($handle, $title, $title.Capacity)
+        if ($title.ToString() -eq "OBS Output") {
+            $script:found = $true
+            return $false
+        }
+        return $true
+    }, [IntPtr]::Zero) | Out-Null
+    return $found
+}
+
+Write-OpLog "OBS watcher waiting for OBS Output"
 
 $deadline = (Get-Date).AddMinutes(10)
 $seen = $false
 while ((Get-Date) -lt $deadline) {
-    $livePreview = Get-Process python,pythonw -ErrorAction SilentlyContinue |
-        Where-Object {
-            $_.Path -like ($Root + "*") -and
-            $_.MainWindowTitle -eq "Live Preview"
-        } |
-        Select-Object -First 1
-
-    if ($livePreview) {
+    if (Test-ObsOutputWindow) {
         $seen = $true
         break
     }
@@ -34,11 +57,11 @@ while ((Get-Date) -lt $deadline) {
 }
 
 if (!$seen) {
-    Write-OpLog "OBS watcher timeout: Live Preview was not detected"
+    Write-OpLog "OBS watcher timeout: OBS Output was not detected"
     exit 0
 }
 
-Write-OpLog "OBS watcher detected Live Preview, refreshing OBS capture"
+Write-OpLog "OBS watcher detected OBS Output, refreshing OBS capture"
 
 Get-Process obs64,obs32,obs -ErrorAction SilentlyContinue |
     Where-Object { $_.Path -like ($Root + "*") } |
@@ -55,5 +78,5 @@ Remove-Item -LiteralPath (Join-Path $Root "obs-studio\config\obs-studio\.sentine
 
 if (Test-Path -LiteralPath $ObsExe) {
     Start-Process -FilePath $ObsExe -WorkingDirectory $ObsDir -ArgumentList @("--portable", "--collection", "DeepLiveCam", "--scene", "DeepLiveCam", "--startvirtualcam") -WindowStyle Hidden
-    Write-OpLog "OBS watcher restarted OBS after Live Preview appeared"
+    Write-OpLog "OBS watcher restarted OBS after OBS Output appeared"
 }

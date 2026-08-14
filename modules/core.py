@@ -66,6 +66,8 @@ def parse_args() -> None:
     program.add_argument('--live-face-fit-scale', help='scale target landmarks for better live face coverage', dest='face_fit_scale', type=float, default=1.06)
     program.add_argument('--live-xseg-mask', help='use XSeg semantic face mask for higher quality live blending', dest='live_xseg_mask', action='store_true', default=None)
     program.add_argument('--no-live-xseg-mask', help='disable XSeg semantic face mask', dest='live_xseg_mask', action='store_false')
+    program.add_argument('--live-obs-output-window', help='show a dedicated OpenCV output window for OBS capture', dest='live_obs_output_window', action='store_true', default=True)
+    program.add_argument('--no-live-obs-output-window', help='disable the dedicated OBS output window', dest='live_obs_output_window', action='store_false')
     program.add_argument('-v', '--version', action='version', version=f'{modules.metadata.name} {modules.metadata.version}')
 
     # register deprecated args
@@ -102,6 +104,7 @@ def parse_args() -> None:
     modules.globals.face_fit_scale = max(0.96, min(1.18, args.face_fit_scale))
     if args.live_xseg_mask is not None:
         modules.globals.live_xseg_mask = args.live_xseg_mask
+    modules.globals.live_obs_output_window = args.live_obs_output_window
     modules.globals.lang = args.lang
 
     # The argparse default (None) avoids evaluating suggest_execution_threads()

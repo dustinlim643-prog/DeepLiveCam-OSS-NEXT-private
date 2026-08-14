@@ -21,13 +21,13 @@ $sceneConfig = [ordered]@{
     sources = @(
         [ordered]@{
             prev_ver = 537001985
-            name = "DeepLiveCam Live Preview"
+            name = "DeepLiveCam OBS Output"
             uuid = $windowSourceUuid
             id = "window_capture"
             versioned_id = "window_capture"
             settings = [ordered]@{
                 priority = 1
-                window = "Live Preview:Qt625QWindowIcon:python.exe"
+                window = "OBS Output:HighGUI class:python.exe"
                 method = 1
                 cursor = $false
                 compatibility = $true
@@ -122,7 +122,7 @@ $sceneConfig = [ordered]@{
                 custom_size = $false
                 items = @(
                     [ordered]@{
-                        name = "DeepLiveCam Live Preview"
+                        name = "DeepLiveCam OBS Output"
                         source_uuid = $windowSourceUuid
                         visible = $true
                         locked = $true
@@ -222,4 +222,4 @@ $sceneConfig = [ordered]@{
 }
 
 $sceneConfig | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $ScenePath -Encoding UTF8
-Write-Output "OBS scene rebuilt for Live Preview at 1280x720."
+Write-Output "OBS scene rebuilt for OBS Output at 1280x720."

@@ -47,6 +47,7 @@ live_single_face_tracking: bool = True
 live_face_iou_threshold: float = 0.12
 live_face_smooth: float = 0.35
 live_xseg_mask: bool = False
+live_obs_output_window: bool = True
 
 # System Configuration
 max_memory: int | None = None        # Memory limit in GB? (Needs clarification)

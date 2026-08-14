@@ -63,6 +63,7 @@ $DeepLiveArgs = @(
     "--live-face-fit-scale", "1.06",
     "--quality-preset", "high_quality",
     "--live-xseg-mask",
+    "--live-obs-output-window",
     "-l", "zh"
 )
 Start-Process -FilePath $Python -ArgumentList $DeepLiveArgs -WorkingDirectory $Root

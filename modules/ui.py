@@ -1241,6 +1241,14 @@ class WebcamPreviewWindow(QWidget):
             return
         bgr_frame = fit_image_to_size(bgr_frame, self.width(), self.height())
         self._image_label.setPixmap(_bgr_to_qpixmap(bgr_frame))
+        if getattr(modules.globals, "live_obs_output_window", True):
+            try:
+                cv2.namedWindow("OBS Output", cv2.WINDOW_NORMAL)
+                cv2.resizeWindow("OBS Output", PREVIEW_DEFAULT_WIDTH, PREVIEW_DEFAULT_HEIGHT)
+                cv2.imshow("OBS Output", bgr_frame)
+                cv2.waitKey(1)
+            except Exception as e:
+                print(f"[webcam] OBS Output window update failed: {e}")
 
     def closeEvent(self, event) -> None:
         self._stop_event.set()
@@ -1255,6 +1263,10 @@ class WebcamPreviewWindow(QWidget):
                 pass
         try:
             self._cap.release()
+        except Exception:
+            pass
+        try:
+            cv2.destroyWindow("OBS Output")
         except Exception:
             pass
         global _WEBCAM_PREVIEW
