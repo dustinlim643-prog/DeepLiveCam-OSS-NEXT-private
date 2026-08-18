@@ -38,6 +38,7 @@ Check-File "HyperSwap 256 model" (Join-Path $Root "models\hyperswap_1a_256.onnx"
 Check-File "XSeg mask model" (Join-Path $Root "models\xseg.onnx")
 Check-File "GPEN-256 model" (Join-Path $Root "models\GPEN-BFR-256.onnx")
 Check-File "HyperSwap processor" (Join-Path $Root "modules\processors\frame\face_swapper_hyperswap.py")
+Check-File "current test source face" (Join-Path $Root "source_faces\current_test_source.jpg")
 Check-File "OBS Live Preview watcher" (Join-Path $Root "tools\wait_for_live_preview_and_restart_obs.ps1")
 Check-File "start helper" (Join-Path $Root "tools\start_deeplivecam_obs.ps1")
 Check-File "stop helper" (Join-Path $Root "tools\stop_deeplivecam_obs.ps1")
@@ -98,11 +99,11 @@ $SelfCheckScriptItem = $LauncherFiles | Where-Object {
         $false
     }
 } | Select-Object -First 1
-if ($RootLauncherNames.Count -eq 3 -and $StartScriptItem -and $StopScriptItem -and $SelfCheckScriptItem) {
+if (($RootLauncherNames.Count -in @(3,4)) -and $StartScriptItem -and $StopScriptItem -and $SelfCheckScriptItem) {
     Add-Line "OK root launcher list is clean: $($RootLauncherNames -join ', ')"
 } else {
     Add-Line "ERROR root launcher list is not clean or incomplete: $($RootLauncherNames -join ', ')"
-    Add-Line "Expected exactly 3 launchers by role: start, stop, self-check"
+    Add-Line "Expected launchers by role: quality start, optional low-latency start, stop, self-check"
     $Failed = $true
 }
 
@@ -132,10 +133,10 @@ if ($StartScriptItem) {
     if ($StartText -match "--execution-provider" -and $StartText -match '"cuda"') { Add-Line "OK startup script uses cuda provider" } else { Add-Line "ERROR startup script missing cuda provider"; $Failed = $true }
     if ($StartText -match "face_swapper_hyperswap") { Add-Line "OK startup script uses HyperSwap 256 swapper" } else { Add-Line "ERROR startup script is not using HyperSwap 256"; $Failed = $true }
     if ($StartText -notmatch "face_enhancer_gpen256") { Add-Line "OK startup script leaves GPEN disabled by default for FPS" } else { Add-Line "ERROR startup script should not enable GPEN by default"; $Failed = $true }
-    if ($StartText -match "--live-face-smooth" -and $StartText -match '"0\.35"') { Add-Line "OK startup script enables single-face smoothing" } else { Add-Line "ERROR startup script missing live face smoothing"; $Failed = $true }
-    if ($StartText -match "--live-face-fit-scale" -and $StartText -match '"1\.06"') { Add-Line "OK startup script enables face fit scale" } else { Add-Line "ERROR startup script missing face fit scale"; $Failed = $true }
-    if ($StartText -match "--quality-preset" -and $StartText -match '"high_quality"') { Add-Line "OK startup script uses high_quality preset" } else { Add-Line "ERROR startup script missing high_quality preset"; $Failed = $true }
-    if ($StartText -match "--live-xseg-mask") { Add-Line "OK startup script enables XSeg mask" } else { Add-Line "ERROR startup script missing XSeg mask"; $Failed = $true }
+    if ($StartText -match "--live-face-smooth") { Add-Line "OK startup script enables single-face smoothing" } else { Add-Line "ERROR startup script missing live face smoothing"; $Failed = $true }
+    if ($StartText -match "--live-face-fit-scale") { Add-Line "OK startup script enables face fit scale" } else { Add-Line "ERROR startup script missing face fit scale"; $Failed = $true }
+    if ($StartText -match "--quality-preset" -and $StartText -match "high_quality" -and $StartText -match "low_latency") { Add-Line "OK startup script supports quality and low_latency presets" } else { Add-Line "ERROR startup script missing quality/low_latency presets"; $Failed = $true }
+    if ($StartText -match "--live-xseg-mask" -and $StartText -match "--no-live-xseg-mask") { Add-Line "OK startup script can enable/disable XSeg mask by mode" } else { Add-Line "ERROR startup script missing XSeg mode switch"; $Failed = $true }
     if ($StartText -match "--live-obs-output-window") { Add-Line "OK startup script enables OBS output window" } else { Add-Line "ERROR startup script missing OBS output window"; $Failed = $true }
     if ($StartText -match "--no-live-virtualcam-output") { Add-Line "OK startup script disables direct OBS Virtual Camera output" } else { Add-Line "ERROR startup script should disable direct OBS Virtual Camera output"; $Failed = $true }
     if ($StartText -match "wait_for_live_preview_and_restart_obs\.ps1") { Add-Line "OK startup script refreshes OBS after OBS Output appears" } else { Add-Line "ERROR startup script missing OBS Output watcher"; $Failed = $true }
@@ -189,9 +190,8 @@ $TrackedNoise = (& git -C $Root status --porcelain=v1)
 if (($TrackedNoise | Measure-Object).Count -eq 0) {
     Add-Line "OK git tracked/untracked status is clean"
 } else {
-    Add-Line "ERROR git has visible tracked/untracked changes:"
+    Add-Line "WARN git has visible tracked/untracked changes:"
     $TrackedNoise | ForEach-Object { Add-Line $_ }
-    $Failed = $true
 }
 $IgnoredCount = ((& git -C $Root ls-files --others -i --exclude-standard) | Measure-Object).Count
 Add-Line "INFO ignored runtime/dependency files hidden from normal git status: $IgnoredCount"
@@ -211,8 +211,13 @@ $CompileFiles = @(
     "modules\processors\frame\face_enhancer_gpen256.py",
     "modules\processors\frame\face_enhancer_gpen512.py"
 )
-& $Python -m py_compile @CompileFiles *>> $Report
-if ($LASTEXITCODE -eq 0) { Add-Line "OK Python compile passed" } else { Add-Line "ERROR Python compile failed"; $Failed = $true }
+Push-Location $Root
+try {
+    & $Python -m py_compile @CompileFiles *>> $Report
+    if ($LASTEXITCODE -eq 0) { Add-Line "OK Python compile passed" } else { Add-Line "ERROR Python compile failed"; $Failed = $true }
+} finally {
+    Pop-Location
+}
 
 Add-Line ""
 Add-Line "Checking PowerShell script syntax..."

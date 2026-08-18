@@ -70,6 +70,7 @@ def parse_args() -> None:
     program.add_argument('--no-live-obs-output-window', help='disable the dedicated OBS output window', dest='live_obs_output_window', action='store_false')
     program.add_argument('--live-virtualcam-output', help='send live frames directly to OBS Virtual Camera', dest='live_virtualcam_output', action='store_true', default=True)
     program.add_argument('--no-live-virtualcam-output', help='disable direct OBS Virtual Camera output', dest='live_virtualcam_output', action='store_false')
+    program.add_argument('--auto-live', help='start live webcam preview automatically after UI opens', dest='auto_live', action='store_true', default=False)
     program.add_argument('-v', '--version', action='version', version=f'{modules.metadata.name} {modules.metadata.version}')
 
     # register deprecated args
@@ -84,7 +85,7 @@ def parse_args() -> None:
     modules.globals.target_path = args.target_path
     modules.globals.output_path = normalize_output_path(modules.globals.source_path, modules.globals.target_path, args.output_path)
     modules.globals.frame_processors = args.frame_processor
-    modules.globals.headless = args.source_path or args.target_path or args.output_path
+    modules.globals.headless = bool(args.target_path or args.output_path)
     modules.globals.keep_fps = args.keep_fps
     modules.globals.keep_audio = args.keep_audio
     modules.globals.keep_frames = args.keep_frames
@@ -108,6 +109,7 @@ def parse_args() -> None:
         modules.globals.live_xseg_mask = args.live_xseg_mask
     modules.globals.live_obs_output_window = args.live_obs_output_window
     modules.globals.live_virtualcam_output = args.live_virtualcam_output
+    modules.globals.auto_live = args.auto_live
     modules.globals.lang = args.lang
 
     # The argparse default (None) avoids evaluating suggest_execution_threads()

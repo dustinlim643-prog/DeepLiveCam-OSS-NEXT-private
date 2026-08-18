@@ -32,5 +32,6 @@ switch_states.json
 /logs/
 /source_faces/
 /outputs/
+/third_party/
 install.bat
 /.claude

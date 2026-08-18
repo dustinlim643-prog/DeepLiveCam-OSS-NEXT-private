@@ -127,7 +127,7 @@ $sceneConfig = [ordered]@{
                         visible = $true
                         locked = $true
                         rot = 0.0
-                        scale_ref = [ordered]@{ x = 1280.0; y = 720.0 }
+                        scale_ref = [ordered]@{ x = 970.0; y = 546.0 }
                         align = 5
                         bounds_type = 2
                         bounds_align = 5
@@ -138,10 +138,10 @@ $sceneConfig = [ordered]@{
                         crop_bottom = 0
                         id = 1
                         group_item_backup = $false
-                        pos = [ordered]@{ x = 0.0; y = 0.0 }
+                        pos = [ordered]@{ x = 155.0; y = 86.0 }
                         scale = [ordered]@{ x = 1.0; y = 1.0 }
                         scale_rel = [ordered]@{ x = 1.0; y = 1.0 }
-                        bounds = [ordered]@{ x = 1280.0; y = 720.0 }
+                        bounds = [ordered]@{ x = 970.0; y = 546.0 }
                         scale_filter = "lanczos"
                         blend_method = "default"
                         blend_type = "normal"

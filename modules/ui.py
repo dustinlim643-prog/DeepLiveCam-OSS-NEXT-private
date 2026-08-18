@@ -1592,6 +1592,8 @@ class _Window:
 
     def mainloop(self) -> None:
         self._main.show()
+        if getattr(modules.globals, "auto_live", False):
+            QTimer.singleShot(1500, self._main._on_live)
         self._app.exec()
 
 
