@@ -42,6 +42,7 @@ camera_input_combobox: Any | None = None # Placeholder for UI element if needed
 webcam_preview_running: bool = False
 show_fps: bool = False
 live_fps_debug: bool = False
+live_health_log: bool = False
 similar_face_distance: float = 1.5
 live_single_face_tracking: bool = True
 live_face_iou_threshold: float = 0.12

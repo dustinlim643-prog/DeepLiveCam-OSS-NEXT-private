@@ -22,6 +22,8 @@ class VideoCapturer:
         self.actual_width: int = 0
         self.actual_height: int = 0
         self.actual_fps: float = 0.0
+        self.actual_fourcc: str = ""
+        self.actual_backend: str = ""
 
         # Initialize Windows-specific components if on Windows
         if platform.system() == "Windows":
@@ -51,32 +53,17 @@ class VideoCapturer:
                 # bandwidth-limited to ~5 fps. Setting MJPG at construction
                 # negotiates compressed frames from the first read.
                 mjpg = cv2.VideoWriter_fourcc(*'MJPG')
-                open_params = [
-                    cv2.CAP_PROP_FOURCC, mjpg,
-                    cv2.CAP_PROP_FRAME_WIDTH, width,
-                    cv2.CAP_PROP_FRAME_HEIGHT, height,
-                    cv2.CAP_PROP_FPS, fps,
-                ]
-                capture_methods = [
-                    (self.device_index, cv2.CAP_DSHOW),
-                    (self.device_index, cv2.CAP_MSMF),
-                    (self.device_index, cv2.CAP_ANY),
-                ]
-
-                for dev_id, backend in capture_methods:
-                    try:
-                        self.cap = cv2.VideoCapture(dev_id, backend, open_params)
-                        if self.cap.isOpened():
-                            break
-                        self.cap.release()
-                    except Exception:
-                        continue
+                self.cap = self._open_windows_camera(width, height, fps, mjpg)
             else:
                 # Unix-like systems (Linux/Mac) capture method
                 self.cap = cv2.VideoCapture(self.device_index)
 
             if not self.cap or not self.cap.isOpened():
-                raise RuntimeError("Failed to open camera")
+                raise RuntimeError(
+                    "Failed to open camera "
+                    f"(backend={self.actual_backend}, actual={self.actual_width}x{self.actual_height}, "
+                    f"fourcc={self.actual_fourcc})"
+                )
 
             # Belt-and-braces: also set via cap.set() for backends that honor
             # post-open changes (MSMF, V4L2). DSHOW ignores these, but the
@@ -87,9 +74,8 @@ class VideoCapturer:
                 self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
                 self.cap.set(cv2.CAP_PROP_FPS, fps)
 
-            # Read back resolution (usually reliable)
-            self.actual_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-            self.actual_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            # Read back resolution and pixel format.
+            self._read_actual_camera_state()
 
             # CAP_PROP_FPS is unreliable on DirectShow — often reports 30
             # even when the camera delivers 60.  Measure empirically by
@@ -98,8 +84,9 @@ class VideoCapturer:
             self.actual_fps = self._measure_fps(warmup=10, sample=30,
                                                 fallback=reported_fps or fps)
 
-            print(f"[VideoCapturer] {self.actual_width}x{self.actual_height} "
-                  f"@ {self.actual_fps:.1f}fps (reported={reported_fps:.0f})",
+            print(f"[VideoCapturer] {self.actual_backend} {self.actual_width}x{self.actual_height} "
+                  f"@ {self.actual_fps:.1f}fps fourcc={self.actual_fourcc} "
+                  f"(reported={reported_fps:.0f})",
                   flush=True)
 
             self.is_running = True
@@ -109,7 +96,87 @@ class VideoCapturer:
             print(f"Failed to start capture: {str(e)}")
             if self.cap:
                 self.cap.release()
+            self.cap = None
+            self.is_running = False
             return False
+
+    def _open_windows_camera(self, width: int, height: int, fps: int, fourcc: int):
+        target_floor = max(1.0, fps * 0.75)
+
+        attempts = [
+            ("dshow_params_mjpg", cv2.CAP_DSHOW, True, ""),
+            ("dshow_set_mjpg_first", cv2.CAP_DSHOW, False, "fourcc_first"),
+            ("dshow_set_size_first", cv2.CAP_DSHOW, False, "size_first"),
+            ("msmf_params_mjpg", cv2.CAP_MSMF, True, ""),
+            ("msmf_set_mjpg_first", cv2.CAP_MSMF, False, "fourcc_first"),
+            ("any_params_mjpg", cv2.CAP_ANY, True, ""),
+        ]
+
+        for label, backend, use_params, set_order in attempts:
+            cap = None
+            try:
+                params = []
+                if use_params:
+                    params = [
+                        cv2.CAP_PROP_FOURCC, fourcc,
+                        cv2.CAP_PROP_FRAME_WIDTH, width,
+                        cv2.CAP_PROP_FRAME_HEIGHT, height,
+                        cv2.CAP_PROP_FPS, fps,
+                    ]
+                cap = cv2.VideoCapture(self.device_index, backend, params) if use_params else cv2.VideoCapture(self.device_index, backend)
+                if not cap or not cap.isOpened():
+                    if cap:
+                        cap.release()
+                    continue
+
+                if set_order == "fourcc_first":
+                    cap.set(cv2.CAP_PROP_FOURCC, fourcc)
+                    cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+                    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+                    cap.set(cv2.CAP_PROP_FPS, fps)
+                elif set_order == "size_first":
+                    cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+                    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+                    cap.set(cv2.CAP_PROP_FPS, fps)
+                    cap.set(cv2.CAP_PROP_FOURCC, fourcc)
+
+                self.cap = cap
+                self._read_actual_camera_state()
+                measured_fps = self._measure_fps(warmup=5, sample=20, fallback=cap.get(cv2.CAP_PROP_FPS) or fps)
+
+                print(
+                    f"[VideoCapturer] attempt={label} actual={self.actual_width}x{self.actual_height} "
+                    f"fps={measured_fps:.1f} fourcc={self.actual_fourcc}",
+                    flush=True,
+                )
+
+                if self.actual_width == width and self.actual_height == height and measured_fps >= target_floor:
+                    self.actual_backend = label
+                    selected_cap = cap
+                    cap = None
+                    return selected_cap
+            except Exception as e:
+                print(f"[VideoCapturer] attempt={label} failed: {e}", flush=True)
+            finally:
+                if cap is not None:
+                    cap.release()
+
+        print("[VideoCapturer] no 30fps camera mode could be opened cleanly", flush=True)
+        return None
+
+    def _read_actual_camera_state(self) -> None:
+        self.actual_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        self.actual_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        self.actual_fourcc = self._fourcc_to_str(self.cap.get(cv2.CAP_PROP_FOURCC))
+
+    @staticmethod
+    def _fourcc_to_str(value: float) -> str:
+        try:
+            code = int(value)
+            text = "".join(chr((code >> (8 * i)) & 0xFF) for i in range(4))
+            return text if text.strip("\x00") else str(code)
+        except Exception:
+            return str(value)
 
     def read(self) -> Tuple[bool, Optional[np.ndarray]]:
         """Read a frame from the camera"""

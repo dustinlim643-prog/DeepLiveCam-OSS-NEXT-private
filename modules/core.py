@@ -57,6 +57,7 @@ def parse_args() -> None:
     program.add_argument('--live-mirror', help='The live camera display as you see it in the front-facing camera frame', dest='live_mirror', action='store_true', default=False)
     program.add_argument('--live-resizable', help='The live camera frame is resizable', dest='live_resizable', action='store_true', default=False)
     program.add_argument('--live-fps-debug', help='print actual live processing FPS every 5 seconds', dest='live_fps_debug', action='store_true', default=False)
+    program.add_argument('--live-health-log', help='write live detection/FPS health metrics every 5 seconds', dest='live_health_log', action='store_true', default=False)
     program.add_argument('--quality-preset', help='live quality preset', dest='quality_preset', default='balanced', choices=['low_latency', 'balanced', 'high_quality'])
     program.add_argument('--max-memory', help='maximum amount of RAM in GB', dest='max_memory', type=int, default=suggest_max_memory())
     program.add_argument('--execution-provider', help='execution provider', dest='execution_provider', default=[suggest_default_execution_provider()], choices=suggest_execution_providers(), nargs='+')
@@ -98,6 +99,7 @@ def parse_args() -> None:
     modules.globals.live_mirror = args.live_mirror
     modules.globals.live_resizable = args.live_resizable
     modules.globals.live_fps_debug = args.live_fps_debug
+    modules.globals.live_health_log = args.live_health_log
     apply_quality_preset(args.quality_preset)
     modules.globals.max_memory = args.max_memory
     modules.globals.execution_providers = decode_execution_providers(args.execution_provider)

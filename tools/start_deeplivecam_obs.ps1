@@ -155,6 +155,7 @@ $DeepLiveArgs = @(
     "--frame-processor", "face_swapper_hyperswap",
     "--live-resizable",
     "--live-fps-debug",
+    "--live-health-log",
     "--similar-face-distance", "1.5",
     "--live-face-smooth", $FaceSmooth,
     "--live-face-fit-scale", $FaceFitScale,
@@ -176,5 +177,5 @@ Start-Process -FilePath "powershell.exe" -ArgumentList @("-NoProfile", "-Executi
 Add-OperationLog "OBS watcher started"
 
 Start-Sleep -Seconds 5
-Start-Process -FilePath $ObsExe -ArgumentList @("--portable", "--collection", "DeepLiveCam", "--scene", "DeepLiveCam") -WorkingDirectory $ObsDir
+Start-Process -FilePath $ObsExe -ArgumentList @("--portable", "--profile", "DeepLiveCam", "--collection", "DeepLiveCam", "--scene", "DeepLiveCam") -WorkingDirectory $ObsDir
 Add-OperationLog "OBS started for OBS Output capture with DroidCam Virtual Output autostart"

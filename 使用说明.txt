@@ -1,134 +1,95 @@
-DeepLiveCam + OBS 最终使用说明
+DeepLiveCam OSS_READY 最终使用说明
 
-项目位置：
-D:\DeepLiveCam2.7-Pro-0730_OSS_READY
+项目目标：
+实时单图换脸，输出到 OBS，再通过 DroidCam Video 给 WhatsApp Desktop 使用。
 
-一、根目录只用这 3 个入口
+当前正式链路：
+DeepLiveCam OBS Output 窗口
+-> OBS 捕获该窗口
+-> DroidCam Virtual Output
+-> Windows 设备 DroidCam Video
+-> WhatsApp Desktop 选择 DroidCam Video
 
-1. 启动：
-1_START.cmd
+根目录日常只用两个入口：
 
-2. 停止：
+1. 启动
+1_START_LOW_LATENCY.cmd
+
+2. 停止
 2_STOP.cmd
 
-3. 自检：
-3_CHECK.cmd
+不要再使用 OBS Virtual Camera 作为 WhatsApp 摄像头。
+WhatsApp 里选择 DroidCam Video。
 
-其他修复逻辑已经放到 tools 内部，启动脚本会自动处理 OBS 场景，不需要用户手动点一堆脚本。
+启动步骤：
 
-二、正确链路
+1. 双击 1_START_LOW_LATENCY.cmd。
+2. 等 DeepLiveCam 界面、OBS、OBS Output 窗口出现。
+3. DeepLiveCam 里确认源脸图片和摄像头。
+4. 点击 Live / 直播。
+5. OBS 预览里应能看到 OBS Output 窗口画面。
+6. WhatsApp 设置 -> 视频和语音 -> 摄像头选择 DroidCam Video。
+7. 发起视频通话，通话中的摄像头菜单也选择 DroidCam Video。
 
-DeepLiveCam 原版 UI 选择源脸图片和摄像头
-点击 Live / 直播
-弹出 Live Preview 换脸窗口
-OBS 捕获 Live Preview
-Telegram 选择 OBS Virtual Camera
+当前推荐配置：
 
-注意：
-OBS 不是换脸软件，只负责把 Live Preview 输出成虚拟摄像头。
-Telegram 里不要选真实摄像头，只选 OBS Virtual Camera。
+摄像头输入：1280x720 / 30fps，MJPG
+OBS 画布：1280x720 / 30fps
+WhatsApp 摄像头：DroidCam Video
+主换脸模型：HyperSwap 256
+Face Enhancer：None
+XSeg：低延迟模式默认关闭
+GPEN512：默认关闭
 
-三、日常操作步骤
+为什么关闭 GPEN512：
 
-1. 双击：
-1_START.cmd
+GPEN512 是后处理增强，不是主换脸模型。
+它会明显增加延迟和掉帧。
+当前测试显示关闭后处理 FPS 从约 7fps 提升到约 18-26fps。
+如果后续要增强清晰度，先试 GPEN-256，不直接回到 GPEN-512。
 
-2. 等待 DeepLiveCam UI 和 OBS 都打开。
+没有画面的排查顺序：
 
-3. 在 DeepLiveCam UI 里点击 Select a face / 选择人脸，选择授权源脸图片。
+1. Windows 设备里是否有 DroidCam Video：
+   Get-PnpDevice | Where-Object FriendlyName -match 'Droid|OBS|Camera' | Format-Table Status,Class,FriendlyName -AutoSize
 
-4. 在 DeepLiveCam UI 里选择摄像头。
+2. OBS 是否加载 DroidCam 插件：
+   OBS 日志里应出现 droidcam-virtual-output.dll 和 AutoStart Trigger。
 
-5. 点击 Live / 直播。
+3. OBS 预览是否有 DeepLiveCam 画面：
+   如果 OBS 里黑屏，问题在 OBS 窗口捕获。
 
-6. 确认弹出 Live Preview 窗口，并且里面是换脸后的实时画面。
+4. WhatsApp 是否选择 DroidCam Video：
+   如果选了 DroidCam Video 但没画面，问题通常在 OBS 没有把画面输出给 DroidCam。
 
-7. Telegram 视频通话里选择：
-OBS Virtual Camera
+5. 如果刚安装 DroidCam 驱动或插件，重启电脑后再测。
 
-四、当前推荐画质配置
+当前已知问题：
 
-启动脚本当前使用：
---execution-provider cuda
---execution-threads 2
---frame-processor face_swapper_hyperswap
---live-resizable
---live-fps-debug
---similar-face-distance 1.5
---live-face-smooth 0.35
---live-face-fit-scale 1.06
---quality-preset balanced
--l zh
+1. 脸部最外轮廓还不够紧致贴合。
+2. 动作过大、侧脸、低头时可能出现边缘穿模。
+3. WhatsApp 最终画质受网络、压缩、DroidCam 输出和 OBS 输入共同影响。
+4. 边缘问题暂时不深调，先保证 WhatsApp 链路稳定。
 
-OBS 当前配置：
-捕获窗口：Live Preview:Qt625QWindowIcon:python.exe
-输出尺寸：1280x720
-锐化滤镜：0.18
-颜色稳定：contrast 0.06，saturation 0.04
-OBS watcher：启动脚本会等待 Live Preview 出现，然后自动刷新一次 OBS 捕获，避免 OBS 过早启动导致黑屏。
+后续边缘优化顺序：
 
-五、参照 Pro 文档后的画质判断
+1. 固定同一张源图、同一光线、同一摄像头位置。
+2. 先微调 face_fit_scale。
+3. 再调 mask scale / blur。
+4. 再测试 XSeg。
+5. 最后才加 OBS 轻微锐化/柔化。
 
-参照资料：
-https://aixplore.cc/posts/deep-live-cam-2-7-pro-face-swap/
+日志位置：
 
-Pro 文档里影响画质的关键点：
-1. 256x256 换脸模型比 inswapper_128 更清晰。
-2. GFPGAN / GPEN 可以叠加在人脸上做高清增强。
-3. 直播保护包含轮廓柔化、预防掉脸、遮挡保护。
-4. 脸型修改可以改善源脸和目标脸尺寸不匹配导致的边缘穿模。
+项目内日志：
+logs
 
-当前 OSS_READY 已实现或接近实现：
-1. GPEN-256 实时增强已接入，作为当前稳定默认方案。
-2. OBS 输出已经固定为 1280x720，并且只捕获 Live Preview。
-3. 已加入颜色稳定、边缘 mask、相似度阈值、FPS 调试。
+用户复制过来的新电脑日志：
+C:\Users\不愁\Downloads\Telegram Desktop
 
-当前还不能等同 Pro 的地方：
-1. 主换脸已从 inswapper_128 切到 HyperSwap 256，源头脸部细节上限比 128 模型更高。
-2. 默认不再启用 GPEN，优先保证实时 FPS；需要更锐时再在 UI 手动选择 GPEN-256。
-3. 已加入单人锁定追踪和 1.06 脸部贴合放大，减少跳脸和边缘暴露。
-4. DFM、完整遮挡分割、完整脸型修改还不能直接照搬 Pro 的编译模块。
+归档说明：
 
-六、下一步优化方向
+旧测试脚本、旧文档和临时同步包已移到：
+_archive\2026-08-old-tests-and-docs
 
-优先顺序：
-1. 先稳定当前链路：Live Preview -> OBS -> Telegram。
-2. 用同一段光线、同一张源图测试 GPEN-256、GPEN-512、GFPGAN 的实际 FPS 和清晰度。
-3. 如果当前电脑卡顿，回到 GPEN-256；如果性能足够，再尝试 GPEN-512 或 GFPGAN。
-4. 如果主要问题是脸型/边缘穿模，优先更换更接近目标脸角度和脸型的授权源图。
-5. 如果单图方案仍达不到真实要求，再进入 DFM 或 256 换脸模型路线。
-
-七、故障处理
-
-没有画面：
-1. 先确认 DeepLiveCam 已经点 Live / 直播。
-2. 确认 Live Preview 窗口已经出现。
-3. 等 3-5 秒，启动脚本里的 OBS watcher 会自动重启 OBS 捕获。
-4. 如果仍没有画面，双击 2_STOP.cmd 后重新启动。
-
-画面模糊：
-1. 优先换更清晰、更正脸、更接近目标脸型的源图。
-2. 确认启动脚本使用 face_swapper_hyperswap。
-3. 不要把 Telegram 选成真实摄像头。
-4. OBS 只能做轻微锐化和颜色稳定，不能把 128 换脸模型变成真正高清模型。
-
-卡顿：
-1. 关闭其他占 GPU 的软件。
-2. 使用当前默认 balanced。
-3. 如果仍卡，后续改成只用 face_swapper 或降低窗口分辨率。
-
-八、换电脑
-
-复制整个文件夹即可：
-D:\DeepLiveCam2.7-Pro-0730_OSS_READY
-
-新电脑需要：
-Windows
-NVIDIA 显卡和驱动
-可用摄像头
-OBS Virtual Camera 可被 Telegram 识别
-
-脚本使用相对路径，不强制必须放在 D 盘。
-
-注意：
-根目录入口使用英文编号 `.cmd`，是为了避免中文 bat 文件名在部分 Windows 命令行环境下异常丢失。
+根目录保持简单，日常不要进 archive 目录操作。

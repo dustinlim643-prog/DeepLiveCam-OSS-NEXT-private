@@ -94,6 +94,33 @@ PREVIEW_MAX_WIDTH = 1280
 PREVIEW_DEFAULT_WIDTH = 1280
 PREVIEW_DEFAULT_HEIGHT = 720
 
+
+def _append_live_health_log(text: str) -> None:
+    try:
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        logs_dir = os.path.join(root, "logs")
+        os.makedirs(logs_dir, exist_ok=True)
+        stamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        day = time.strftime("%Y%m%d")
+        with open(os.path.join(logs_dir, f"live_health_{day}.txt"), "a", encoding="utf-8") as f:
+            f.write(f"{stamp} {text}\n")
+    except Exception:
+        pass
+
+
+def _bbox_metrics(face: object) -> Optional[Tuple[float, float, float, float, float]]:
+    bbox = getattr(face, "bbox", None)
+    if bbox is None:
+        return None
+    try:
+        x1, y1, x2, y2 = [float(v) for v in bbox]
+    except Exception:
+        return None
+    width = max(0.0, x2 - x1)
+    height = max(0.0, y2 - y1)
+    area = width * height
+    return ((x1 + x2) / 2.0, (y1 + y2) / 2.0, width, height, area)
+
 POPUP_WIDTH = 750
 POPUP_HEIGHT = 810
 POPUP_SCROLL_WIDTH = 720
@@ -1061,6 +1088,15 @@ class _ProcessingWorker(QThread):
         cached_target_face = None
         cached_many_faces = None
         det_interval = 1
+        health_frames = 0
+        health_detected = 0
+        health_missed = 0
+        health_max_consecutive_missed = 0
+        health_consecutive_missed = 0
+        health_bbox_jump = 0
+        health_bbox_area_total = 0.0
+        health_bbox_area_count = 0
+        health_prev_bbox = None
 
         while not self._stop.is_set():
             try:
@@ -1097,6 +1133,31 @@ class _ProcessingWorker(QThread):
                     cached_faces = cached_many_faces
                 elif cached_target_face is not None:
                     cached_faces = [cached_target_face]
+
+                health_frames += 1
+                health_face = cached_target_face
+                if cached_many_faces:
+                    health_face = cached_many_faces[0]
+                metrics = _bbox_metrics(health_face)
+                if metrics is None:
+                    health_missed += 1
+                    health_consecutive_missed += 1
+                    health_max_consecutive_missed = max(
+                        health_max_consecutive_missed, health_consecutive_missed
+                    )
+                else:
+                    health_detected += 1
+                    health_consecutive_missed = 0
+                    health_bbox_area_total += metrics[4]
+                    health_bbox_area_count += 1
+                    if health_prev_bbox is not None:
+                        dx = abs(metrics[0] - health_prev_bbox[0])
+                        dy = abs(metrics[1] - health_prev_bbox[1])
+                        area_base = max(1.0, health_prev_bbox[4])
+                        area_ratio = abs(metrics[4] - health_prev_bbox[4]) / area_base
+                        if dx > metrics[2] * 0.35 or dy > metrics[3] * 0.35 or area_ratio > 0.55:
+                            health_bbox_jump += 1
+                    health_prev_bbox = metrics
 
                 # Fast detection skips the 2d106 landmark model, but the mouth
                 # mask needs it. Attach landmarks on demand (computed once per
@@ -1163,12 +1224,32 @@ class _ProcessingWorker(QThread):
                 prev_time = current_time
             if modules.globals.live_fps_debug and current_time - last_debug_time >= fps_debug_interval:
                 debug_fps = debug_frame_count / (current_time - last_debug_time)
+                miss_rate = (health_missed / max(1, health_frames)) * 100.0
+                avg_bbox_area = health_bbox_area_total / max(1, health_bbox_area_count)
+                health_text = (
+                    f"[live-health] process_fps={debug_fps:.1f} camera_fps={self._fps:.1f} "
+                    f"frame_size={temp_frame.shape[1]}x{temp_frame.shape[0]} "
+                    f"frames={health_frames} detected={health_detected} missed={health_missed} "
+                    f"miss_rate={miss_rate:.1f}% max_consecutive_missed={health_max_consecutive_missed} "
+                    f"bbox_jump={health_bbox_jump} avg_bbox_area={avg_bbox_area:.0f} "
+                    f"queue_in={self._cq.qsize()} queue_out={self._pq.qsize()}"
+                )
                 print(
                     f"[live-fps] process={debug_fps:.1f} camera={self._fps:.1f} "
                     f"detect_every={det_interval} queue_in={self._cq.qsize()} queue_out={self._pq.qsize()}"
                 )
+                if getattr(modules.globals, "live_health_log", False):
+                    _append_live_health_log(health_text)
                 debug_frame_count = 0
                 last_debug_time = current_time
+                health_frames = 0
+                health_detected = 0
+                health_missed = 0
+                health_max_consecutive_missed = 0
+                health_consecutive_missed = 0
+                health_bbox_jump = 0
+                health_bbox_area_total = 0.0
+                health_bbox_area_count = 0
 
             if modules.globals.show_fps:
                 cv2.putText(
@@ -1210,7 +1291,7 @@ class WebcamPreviewWindow(QWidget):
         layout.addWidget(self._image_label, 1)
 
         self._cap = VideoCapturer(camera_index)
-        if not self._cap.start(PREVIEW_DEFAULT_WIDTH, PREVIEW_DEFAULT_HEIGHT, 60):
+        if not self._cap.start(PREVIEW_DEFAULT_WIDTH, PREVIEW_DEFAULT_HEIGHT, 30):
             update_status("Failed to start camera")
             QTimer.singleShot(0, self.close)
             return
@@ -1220,6 +1301,11 @@ class WebcamPreviewWindow(QWidget):
             f"[webcam] Camera running at {self._cap.actual_width}x"
             f"{self._cap.actual_height}@{camera_fps:.0f}fps"
         )
+        if getattr(modules.globals, "live_health_log", False):
+            _append_live_health_log(
+                f"[live-camera] actual={self._cap.actual_width}x{self._cap.actual_height}@{camera_fps:.1f}fps "
+                f"fourcc={getattr(self._cap, 'actual_fourcc', '')} backend={getattr(self._cap, 'actual_backend', '')}"
+            )
 
         self._capture_queue: queue.Queue = queue.Queue(maxsize=2)
         self._processed_queue: queue.Queue = queue.Queue(maxsize=2)
