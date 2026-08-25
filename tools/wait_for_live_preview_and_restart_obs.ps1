@@ -77,6 +77,6 @@ Remove-Item -LiteralPath (Join-Path $Root "obs-studio\config\obs-studio\.sentine
 & powershell -NoProfile -ExecutionPolicy Bypass -File $ResetScript | Out-Null
 
 if (Test-Path -LiteralPath $ObsExe) {
-    Start-Process -FilePath $ObsExe -WorkingDirectory $ObsDir -ArgumentList @("--portable", "--collection", "DeepLiveCam", "--scene", "DeepLiveCam", "--startvirtualcam") -WindowStyle Hidden
+    Start-Process -FilePath $ObsExe -WorkingDirectory $ObsDir -ArgumentList @("--portable", "--profile", "DeepLiveCam", "--collection", "DeepLiveCam", "--scene", "DeepLiveCam") -WindowStyle Hidden
     Write-OpLog "OBS watcher restarted OBS after OBS Output appeared"
 }

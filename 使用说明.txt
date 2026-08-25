@@ -10,13 +10,16 @@ DeepLiveCam OBS Output 窗口
 -> Windows 设备 DroidCam Video
 -> WhatsApp Desktop 选择 DroidCam Video
 
-根目录日常只用两个入口：
+根目录日常只用三个入口：
 
 1. 启动
 1_START_LOW_LATENCY.cmd
 
 2. 停止
 2_STOP.cmd
+
+3. 查看最近健康日志
+3_SHOW_RECENT_HEALTH.cmd
 
 不要再使用 OBS Virtual Camera 作为 WhatsApp 摄像头。
 WhatsApp 里选择 DroidCam Video。
@@ -83,6 +86,31 @@ GPEN512 是后处理增强，不是主换脸模型。
 
 项目内日志：
 logs
+
+帧率稳定性排查：
+
+1. 启动 1_START_LOW_LATENCY.cmd。
+2. WhatsApp 接通后保持 2-3 分钟。
+3. 不同时改源图、XSeg、GPEN、OBS 滤镜。
+4. 测试结束后运行 3_SHOW_RECENT_HEALTH.cmd。
+5. 重点看 live_health 里的：
+   process_fps
+   camera_fps
+   miss_rate
+   queue_in / queue_out
+   avg_ms_total
+   avg_ms_detect
+   avg_ms_swap
+   avg_ms_enhance
+   avg_ms_other
+
+判断方式：
+
+avg_ms_detect 高：瓶颈在人脸检测/追踪。
+avg_ms_swap 高：瓶颈在 HyperSwap 主换脸。
+avg_ms_enhance 高：说明开了 GPEN/GFPGAN 或增强器负担过重。
+queue_in 长期满：处理跟不上摄像头输入。
+miss_rate 高：掉脸/侧脸/遮挡/距离问题，先不等同于网络问题。
 
 用户复制过来的新电脑日志：
 C:\Users\不愁\Downloads\Telegram Desktop

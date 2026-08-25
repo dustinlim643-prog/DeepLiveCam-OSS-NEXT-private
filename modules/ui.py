@@ -1097,6 +1097,12 @@ class _ProcessingWorker(QThread):
         health_bbox_area_total = 0.0
         health_bbox_area_count = 0
         health_prev_bbox = None
+        perf_total_ms = 0.0
+        perf_source_ms = 0.0
+        perf_detect_ms = 0.0
+        perf_swap_ms = 0.0
+        perf_enhance_ms = 0.0
+        perf_other_ms = 0.0
 
         while not self._stop.is_set():
             try:
@@ -1104,6 +1110,7 @@ class _ProcessingWorker(QThread):
             except queue.Empty:
                 continue
 
+            frame_perf_start = time.perf_counter()
             temp_frame = frame
             if modules.globals.live_mirror:
                 temp_frame = gpu_flip(temp_frame, 1)
@@ -1113,11 +1120,14 @@ class _ProcessingWorker(QThread):
                     modules.globals.source_path
                     and modules.globals.source_path != last_source_path
                 ):
+                    source_perf_start = time.perf_counter()
                     last_source_path = modules.globals.source_path
                     source_image = get_one_face(imread_unicode(modules.globals.source_path))
+                    perf_source_ms += (time.perf_counter() - source_perf_start) * 1000.0
 
                 det_count += 1
                 if det_count % det_interval == 0:
+                    detect_perf_start = time.perf_counter()
                     if modules.globals.many_faces:
                         cached_target_face = None
                         cached_many_faces = detect_many_faces_fast(temp_frame)
@@ -1127,6 +1137,7 @@ class _ProcessingWorker(QThread):
                         else:
                             cached_target_face = detect_one_face_fast(temp_frame)
                         cached_many_faces = None
+                    perf_detect_ms += (time.perf_counter() - detect_perf_start) * 1000.0
 
                 cached_faces = None
                 if cached_many_faces:
@@ -1163,25 +1174,34 @@ class _ProcessingWorker(QThread):
                 # mask needs it. Attach landmarks on demand (computed once per
                 # detection cycle — the helper no-ops if already present).
                 if modules.globals.mouth_mask and cached_faces:
+                    other_perf_start = time.perf_counter()
                     ensure_landmarks(temp_frame, cached_faces)
+                    perf_other_ms += (time.perf_counter() - other_perf_start) * 1000.0
 
                 for fp in frame_processors:
                     if fp.NAME == "DLC.FACE-ENHANCER":
                         if modules.globals.fp_ui["face_enhancer"]:
+                            enhance_perf_start = time.perf_counter()
                             temp_frame = fp.process_frame(
                                 None, temp_frame, detected_faces=cached_faces
                             )
+                            perf_enhance_ms += (time.perf_counter() - enhance_perf_start) * 1000.0
                     elif fp.NAME == "DLC.FACE-ENHANCER-GPEN256":
                         if modules.globals.fp_ui.get("face_enhancer_gpen256", False):
+                            enhance_perf_start = time.perf_counter()
                             temp_frame = fp.process_frame(
                                 None, temp_frame, detected_faces=cached_faces
                             )
+                            perf_enhance_ms += (time.perf_counter() - enhance_perf_start) * 1000.0
                     elif fp.NAME == "DLC.FACE-ENHANCER-GPEN512":
                         if modules.globals.fp_ui.get("face_enhancer_gpen512", False):
+                            enhance_perf_start = time.perf_counter()
                             temp_frame = fp.process_frame(
                                 None, temp_frame, detected_faces=cached_faces
                             )
+                            perf_enhance_ms += (time.perf_counter() - enhance_perf_start) * 1000.0
                     elif fp.NAME == "DLC.FACE-SWAPPER":
+                        swap_perf_start = time.perf_counter()
                         swapped_bboxes = []
                         if modules.globals.many_faces and cached_many_faces:
                             result = temp_frame.copy()
@@ -1198,32 +1218,49 @@ class _ProcessingWorker(QThread):
                                 hasattr(cached_target_face, "bbox")
                                 and cached_target_face.bbox is not None
                             ):
-                                swapped_bboxes.append(cached_target_face.bbox.astype(int))
+                                    swapped_bboxes.append(cached_target_face.bbox.astype(int))
                         temp_frame = fp.apply_post_processing(temp_frame, swapped_bboxes)
+                        perf_swap_ms += (time.perf_counter() - swap_perf_start) * 1000.0
                     else:
+                        other_perf_start = time.perf_counter()
                         temp_frame = fp.process_frame(source_image, temp_frame)
+                        perf_other_ms += (time.perf_counter() - other_perf_start) * 1000.0
             else:
                 modules.globals.target_path = None
                 for fp in frame_processors:
                     if fp.NAME == "DLC.FACE-ENHANCER":
                         if modules.globals.fp_ui["face_enhancer"]:
+                            enhance_perf_start = time.perf_counter()
                             temp_frame = fp.process_frame_v2(temp_frame)
+                            perf_enhance_ms += (time.perf_counter() - enhance_perf_start) * 1000.0
                     elif fp.NAME in ("DLC.FACE-ENHANCER-GPEN256", "DLC.FACE-ENHANCER-GPEN512"):
                         fp_key = fp.NAME.split(".")[-1].lower().replace("-", "_")
                         if modules.globals.fp_ui.get(fp_key, False):
+                            enhance_perf_start = time.perf_counter()
                             temp_frame = fp.process_frame_v2(temp_frame)
+                            perf_enhance_ms += (time.perf_counter() - enhance_perf_start) * 1000.0
                     else:
+                        other_perf_start = time.perf_counter()
                         temp_frame = fp.process_frame_v2(temp_frame)
+                        perf_other_ms += (time.perf_counter() - other_perf_start) * 1000.0
 
             current_time = time.time()
             frame_count += 1
             debug_frame_count += 1
+            perf_total_ms += (time.perf_counter() - frame_perf_start) * 1000.0
             if current_time - prev_time >= fps_update_interval:
                 fps = frame_count / (current_time - prev_time)
                 frame_count = 0
                 prev_time = current_time
             if modules.globals.live_fps_debug and current_time - last_debug_time >= fps_debug_interval:
                 debug_fps = debug_frame_count / (current_time - last_debug_time)
+                perf_frames = max(1, debug_frame_count)
+                avg_total_ms = perf_total_ms / perf_frames
+                avg_source_ms = perf_source_ms / perf_frames
+                avg_detect_ms = perf_detect_ms / perf_frames
+                avg_swap_ms = perf_swap_ms / perf_frames
+                avg_enhance_ms = perf_enhance_ms / perf_frames
+                avg_other_ms = perf_other_ms / perf_frames
                 miss_rate = (health_missed / max(1, health_frames)) * 100.0
                 avg_bbox_area = health_bbox_area_total / max(1, health_bbox_area_count)
                 health_text = (
@@ -1232,16 +1269,28 @@ class _ProcessingWorker(QThread):
                     f"frames={health_frames} detected={health_detected} missed={health_missed} "
                     f"miss_rate={miss_rate:.1f}% max_consecutive_missed={health_max_consecutive_missed} "
                     f"bbox_jump={health_bbox_jump} avg_bbox_area={avg_bbox_area:.0f} "
-                    f"queue_in={self._cq.qsize()} queue_out={self._pq.qsize()}"
+                    f"queue_in={self._cq.qsize()} queue_out={self._pq.qsize()} "
+                    f"avg_ms_total={avg_total_ms:.1f} avg_ms_source={avg_source_ms:.1f} "
+                    f"avg_ms_detect={avg_detect_ms:.1f} avg_ms_swap={avg_swap_ms:.1f} "
+                    f"avg_ms_enhance={avg_enhance_ms:.1f} avg_ms_other={avg_other_ms:.1f}"
                 )
                 print(
                     f"[live-fps] process={debug_fps:.1f} camera={self._fps:.1f} "
-                    f"detect_every={det_interval} queue_in={self._cq.qsize()} queue_out={self._pq.qsize()}"
+                    f"detect_every={det_interval} queue_in={self._cq.qsize()} queue_out={self._pq.qsize()} "
+                    f"ms(total/detect/swap/enh/other)="
+                    f"{avg_total_ms:.1f}/{avg_detect_ms:.1f}/{avg_swap_ms:.1f}/"
+                    f"{avg_enhance_ms:.1f}/{avg_other_ms:.1f}"
                 )
                 if getattr(modules.globals, "live_health_log", False):
                     _append_live_health_log(health_text)
                 debug_frame_count = 0
                 last_debug_time = current_time
+                perf_total_ms = 0.0
+                perf_source_ms = 0.0
+                perf_detect_ms = 0.0
+                perf_swap_ms = 0.0
+                perf_enhance_ms = 0.0
+                perf_other_ms = 0.0
                 health_frames = 0
                 health_detected = 0
                 health_missed = 0
