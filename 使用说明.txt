@@ -10,7 +10,7 @@ DeepLiveCam OBS Output 窗口
 -> Windows 设备 DroidCam Video
 -> WhatsApp Desktop 选择 DroidCam Video
 
-根目录日常只用三个入口：
+根目录日常只用四个入口：
 
 1. 启动
 1_START_LOW_LATENCY.cmd
@@ -20,6 +20,9 @@ DeepLiveCam OBS Output 窗口
 
 3. 查看最近健康日志
 3_SHOW_RECENT_HEALTH.cmd
+
+4. 生成一次完整稳定性诊断快照
+4_CAPTURE_STABILITY_SNAPSHOT.cmd
 
 不要再使用 OBS Virtual Camera 作为 WhatsApp 摄像头。
 WhatsApp 里选择 DroidCam Video。
@@ -103,13 +106,17 @@ GPEN512 是后处理增强，不是主换脸模型。
 项目内日志：
 logs
 
+完整诊断快照：
+logs\stability_snapshot_YYYYMMDD_HHMMSS.txt
+
 帧率稳定性排查：
 
 1. 启动 1_START_LOW_LATENCY.cmd。
 2. WhatsApp 接通后保持 2-3 分钟。
 3. 不同时改源图、XSeg、GPEN、OBS 滤镜。
-4. 测试结束后运行 3_SHOW_RECENT_HEALTH.cmd。
-5. 重点看 live_health 里的：
+4. 测试结束后先运行 4_CAPTURE_STABILITY_SNAPSHOT.cmd。
+5. 如果只想快速看最近几行，再运行 3_SHOW_RECENT_HEALTH.cmd。
+6. 重点看 live_health 里的：
    process_fps
    camera_fps
    miss_rate
@@ -127,6 +134,28 @@ avg_ms_swap 高：瓶颈在 HyperSwap 主换脸。
 avg_ms_enhance 高：说明开了 GPEN/GFPGAN 或增强器负担过重。
 queue_in 长期满：处理跟不上摄像头输入。
 miss_rate 高：掉脸/侧脸/遮挡/距离问题，先不等同于网络问题。
+
+断线/掉帧保护阶段：
+
+现在只做日志和判断，不自动挂断 WhatsApp。
+自动断线必须等多轮日志证明误判率低之后再考虑。
+
+4_CAPTURE_STABILITY_SNAPSHOT.cmd 会记录：
+
+1. DeepLiveCam 处理 FPS、摄像头 FPS、掉脸率、队列、分段耗时。
+2. OBS 是否捕获 OBS Output，DroidCam 输出是否 active/inactive。
+3. Windows 是否识别 DroidCam Video、OBS、4k Camera。
+4. WhatsApp 进程和连接状态。
+5. 网络延迟和丢包快速样本。
+
+问题归因顺序：
+
+1. process_fps 低或 queue 高：本地处理跟不上。
+2. camera_fps 低：摄像头输入规格或驱动问题。
+3. miss_rate 高：本地掉脸、遮挡、侧脸或脸部距离问题。
+4. OBS 里 DroidCam inactive/stopping：OBS 到 DroidCam 输出链路问题。
+5. 本地输出清楚但远端糊，且网络延迟/丢包异常：优先看 VPN/网络。
+6. 本地输出清楚、网络正常但远端糊：优先看 WhatsApp 压缩或虚拟摄像头接收规格。
 
 用户复制过来的新电脑日志：
 C:\Users\不愁\Downloads\Telegram Desktop
