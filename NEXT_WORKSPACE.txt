@@ -1,0 +1,20 @@
+DeepLiveCam OSS NEXT workspace
+
+Purpose:
+  This folder is for the next quality/stability optimization round.
+
+Do not modify the stable baseline first:
+  D:\DeepLiveCam2.7-Pro-0730_OSS_READY
+
+Stable baseline tag:
+  STABLE_WHATSAPP_OK_20260830
+
+Current branch:
+  next-quality-optimization
+
+Optimization order:
+  1. Keep the current WhatsApp/DroidCam/OBS chain unchanged.
+  2. Improve OBS visual balancing with low-risk filters first.
+  3. Test mouth-region behavior carefully.
+  4. Add lightweight no-face/occlusion/false-miss logging and short protection.
+  5. Tune face edge only with one variable at a time.
