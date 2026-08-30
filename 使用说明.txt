@@ -24,6 +24,9 @@ DeepLiveCam OBS Output 窗口
 4. 生成一次完整稳定性诊断快照
 4_CAPTURE_STABILITY_SNAPSHOT.cmd
 
+5. 诊断 WhatsApp 视频链路
+5_DIAGNOSE_WHATSAPP_VIDEO.cmd
+
 不要再使用 OBS Virtual Camera 作为 WhatsApp 摄像头。
 WhatsApp 里选择 DroidCam Video。
 
@@ -69,6 +72,34 @@ GPEN512 是后处理增强，不是主换脸模型。
    如果选了 DroidCam Video 但没画面，问题通常在 OBS 没有把画面输出给 DroidCam。
 
 5. 如果刚安装 DroidCam 驱动或插件，重启电脑后再测。
+
+新设备 WhatsApp 选择 DroidCam Video 但没有换脸画面：
+
+先运行：
+5_DIAGNOSE_WHATSAPP_VIDEO.cmd
+
+重点看：
+
+1. OBS profile 是否是 DeepLiveCam。
+2. DroidCam AutoStart 是否是 true。
+3. OBS scene 是否捕获 OBS Output:HighGUI class:python.exe。
+4. OBS 日志是否有 droidcam-virtual-output.dll loaded。
+5. OBS 日志是否有 webcam video active 1280x720 30fps。
+
+如果 WhatsApp 画面显示 Start DroidCam 或黑屏，但 OBS 预览有换脸画面，问题通常在：
+
+1. OBS 没有真正启动 DroidCam Virtual Output。
+2. OBS 使用了错误 profile。
+3. WhatsApp 读到了 DroidCam 的旧占位流。
+4. 启动顺序不对。
+
+正确顺序：
+
+1. 先运行 2_STOP.cmd。
+2. 再运行 1_START_LOW_LATENCY.cmd。
+3. 等 OBS Output 窗口出现并有画面。
+4. 等 OBS 预览有画面。
+5. 再打开 WhatsApp，选择 DroidCam Video。
 
 当前已知问题：
 
