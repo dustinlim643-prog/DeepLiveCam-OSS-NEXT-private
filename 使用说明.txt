@@ -168,6 +168,85 @@ miss_rate 高：掉脸/侧脸/遮挡/距离问题，先不等同于网络问题�
 
 断线/掉帧保护阶段：
 
+AI 生成标准源脸图命令：
+
+把 3-8 张授权参考照发给 AI 后，复制下面这段：
+
+我会提供 3-8 张已授权的人脸参考照片。请基于这些参考照片生成一张适合实时单图换脸的真实照片级源脸图。
+必须保持同一人物身份特征；正脸；眼睛看镜头；左右/上下偏转不超过 10 度；面部完整，额头、下巴、左右脸颊轮廓都可见；无眼镜、无手、无头发遮挡关键区域；表情自然，闭嘴或轻微放松；嘴唇颜色自然；光线均匀柔和；皮肤保留真实纹理，不要重度美颜、磨皮、塑料感、CG 感；背景简单；无文字水印；输出 1:1，1024x1024 或更高。
+请输出 3 个版本：A 身份相似优先；B 脸型贴合优先；C 换脸测试优先。不要输出漫画、写真大片、网红滤镜、艺术照。我要的是换脸源图，不是单纯好看的头像。
+
+AI 判断图片是否合格命令：
+
+把候选图片发给 AI 后，复制下面这段：
+
+请判断这张图片是否适合做实时单图换脸源脸图。不要只评价好不好看，要按换脸效果判断。
+请按 0-5 分评分：正脸角度、脸部完整度、清晰度、光线、遮挡、嘴部状态、美颜程度、脸型匹配风险、边缘风险、实时使用风险。
+请用表格输出：评分项 / 分数 / 问题 / 会导致的换脸后果。
+最后只给三选一结论：可直接测试 / 可测试但需记录缺陷 / 不建议作为主测试源图。
+
+当前 OBS 优化：
+
+OBS profile：DeepLiveCam
+OBS scene：DeepLiveCam
+捕获窗口：OBS Output:HighGUI class:python.exe
+捕获方式：WGC
+OBS 画布和输出：1280x720 / 30fps
+DroidCamVirtualOutput AutoStart：true
+WhatsApp 摄像头：DroidCam Video
+有效画面区域：970x546
+位置：X=155, Y=86
+缩放：Lanczos
+锐化滤镜：0.18
+颜色稳定：contrast 0.06，brightness 0，saturation 0.04，hue_shift 0，opacity 100
+
+OBS 可做但未测试：
+
+轻微柔化皮肤、LUT/色彩预设、更小画面区域 900x506、1080p 输出、更强锐化 0.22-0.30、降噪/磨皮插件。
+这些只能做画面均衡，不能替代 DeepLiveCam 的脸型、mask、嘴部优化。
+
+当前 DeepLiveCam 实时参数：
+
+启动：1_START_LOW_LATENCY.cmd
+源图：source_faces\current_test_source.jpg
+主模型：HyperSwap 256
+Face Enhancer：None
+XSeg：关闭
+GPEN512：关闭
+Poisson Blend：关闭
+颜色校正：开启
+颜色迁移强度：0.25
+DeepLiveCam 锐化：0.18
+face_fit_scale：1.06
+face_mask_scale：0.45
+face_mask_blur：23
+live_face_smooth：0.25
+similar_face_distance：1.5
+mouth_mask：关闭
+mouth_mask_size：0
+OBS 输出窗口：开启
+DeepLiveCam 虚拟摄像头输出：关闭
+
+部位调试对照：
+
+脸大小贴合：face_fit_scale，当前 1.06，可测 1.04 / 1.06 / 1.08 / 1.10。过小露边，过大脸浮。
+脸部边缘范围：face_mask_scale，当前 0.45，可测 0.43 / 0.45 / 0.47 / 0.50。过小露底，过大压到头发和脸型。
+边缘柔和：face_mask_blur，当前 23，可测 19 / 23 / 31 / 39。过低硬边，过高发虚。
+动态防抖：live_face_smooth，当前 0.25，可测 0.20 / 0.25 / 0.35。过高会延迟和粘滞。
+嘴部动态：mouth_mask_size，当前 0，可从 10 / 20 / 30 起测。过大会嘴部断层。
+语义遮罩：XSeg 当前关闭，只在新硬件质量测试时开启。
+OBS 锐化：当前 0.18，可测 0.12 / 0.18 / 0.24。过高会放大边缘瑕疵。
+
+调试顺序：
+
+1. 只换源图，选出最真实的 1-2 张。
+2. 只调 face_fit_scale。
+3. 再调 face_mask_scale。
+4. 再调 face_mask_blur。
+5. 再测 mouth_mask_size。
+6. 新硬件上再测 XSeg / high_quality。
+7. 最后才调 OBS 美化。
+
 现在只做日志和判断，不自动挂断 WhatsApp。
 自动断线必须等多轮日志证明误判率低之后再考虑。
 
