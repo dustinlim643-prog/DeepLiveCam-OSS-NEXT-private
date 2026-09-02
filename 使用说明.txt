@@ -1,4 +1,4 @@
-DeepLiveCam OSS_READY 最终使用说明
+﻿DeepLiveCam OSS_READY 最终使用说明
 
 项目目标：
 实时单图换脸，输出到 OBS，再通过 DroidCam Video 给 WhatsApp Desktop 使用。
@@ -258,7 +258,7 @@ face_fit_scale：1.06
 face_mask_scale：0.45
 face_mask_blur：23
 live_face_smooth：0.25
-Mouth Mask：0
+嘴部遮罩 Mouth Mask：0
 OBS 锐化：0.18
 OBS contrast：0.06
 OBS saturation：0.04
@@ -267,7 +267,7 @@ WhatsApp 摄像头：DroidCam Video
 
 嘴部微调位置：
 
-DeepLiveCam 主界面 -> Refinement -> Mouth Mask
+DeepLiveCam 主界面 -> 细节调整 Refinement -> 嘴部遮罩 Mouth Mask
 
 本轮只测：
 
@@ -285,7 +285,7 @@ DeepLiveCam 主界面 -> Refinement -> Mouth Mask
 
 判断：
 
-Mouth Mask 越大，说话和牙齿越可能自然，但身份相似度可能下降。
+嘴部遮罩 Mouth Mask 越大，说话和牙齿越可能自然，但身份相似度可能下降。
 如果出现嘴角断层、嘴巴不像源图、嘴周围一圈糊，立刻回退上一档。
 
 和 ChatGPT 生成 AI 源图时先说：
@@ -325,3 +325,4 @@ C:\Users\不愁\Downloads\Telegram Desktop
 _archive\2026-08-old-tests-and-docs
 
 根目录保持简单，日常不要进 archive 目录操作。
+
