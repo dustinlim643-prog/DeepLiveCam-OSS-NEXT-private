@@ -197,6 +197,8 @@ WhatsApp 摄像头：DroidCam Video
 有效画面区域：970x546
 位置：X=155, Y=86
 缩放：Lanczos
+状态：当前稳定回退值
+不要使用：大小 506x900、边界 970x545 这类竖向构图。当前稳定链路是 1280x720 横屏流，竖向构图会让 WhatsApp 观感变差。
 锐化滤镜：0.18
 颜色稳定：contrast 0.06，brightness 0，saturation 0.04，hue_shift 0，opacity 100
 
