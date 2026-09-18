@@ -10,7 +10,7 @@ DeepLiveCam OBS Output 窗口
 -> Windows 设备 DroidCam Video
 -> WhatsApp Desktop 选择 DroidCam Video
 
-根目录日常只用四个入口：
+根目录入口：
 
 1. 启动
 1_START_LOW_LATENCY.cmd
@@ -26,6 +26,19 @@ DeepLiveCam OBS Output 窗口
 
 5. 诊断 WhatsApp 视频链路
 5_DIAGNOSE_WHATSAPP_VIDEO.cmd
+
+6. 启动手机竖屏格式（只切换 OBS，不启动模拟器）
+6_START_MOBILE_FORMAT.cmd
+
+7. 采集当前输出路线性能报告
+7_CAPTURE_ROUTE_RESULT.cmd
+
+电脑横屏与手机竖屏切换：
+
+1_START_LOW_LATENCY.cmd：1280x720 / 30fps，DroidCam，正式横屏模式。
+6_START_MOBILE_FORMAT.cmd：720x1280 / 30fps，OBS Virtual Camera，手机竖屏模式。
+
+两个入口使用相同换脸模型、源图和低延迟参数，只切换 OBS profile、scene、分辨率和输出摄像头。每次启动都会自动重建对应 OBS 配置，Windows 重启后无需手动重新设置。
 
 不要再使用 OBS Virtual Camera 作为 WhatsApp 摄像头。
 WhatsApp 里选择 DroidCam Video。

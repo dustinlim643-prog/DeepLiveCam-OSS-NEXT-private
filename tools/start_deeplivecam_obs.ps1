@@ -1,6 +1,8 @@
 param(
     [ValidateSet("quality", "low_latency")]
-    [string]$Mode = "quality"
+    [string]$Mode = "quality",
+    [ValidateSet("Desktop", "Mobile")]
+    [string]$OutputRoute = "Desktop"
 )
 
 $ErrorActionPreference = "Stop"
@@ -13,6 +15,7 @@ $Python = Join-Path $Root "python\python.exe"
 $RunPy = Join-Path $Root "run.py"
 $DefaultSourceFace = Join-Path $Root "source_faces\current_test_source.jpg"
 $ResetObs = Join-Path $Root "tools\reset_obs_scene.ps1"
+$ResetObsMobile = Join-Path $Root "tools\reset_obs_mobile_scene.ps1"
 $Watcher = Join-Path $Root "tools\wait_for_live_preview_and_restart_obs.ps1"
 $ObsConfigRoot = Join-Path $Root "obs-studio\config\obs-studio"
 $ObsProfileRoot = Join-Path $Root "obs-studio\config\obs-studio\basic\profiles"
@@ -74,15 +77,15 @@ function Set-IniValue($Path, $Section, $Key, $Value) {
             $lines.Insert($insertAt, "$Key=$Value")
         }
     }
-    Set-Content -LiteralPath $Path -Encoding UTF8 -Value $lines
+    [System.IO.File]::WriteAllLines($Path, [string[]]$lines, [System.Text.UTF8Encoding]::new($false))
 }
 
-function Enable-DroidCamOutput {
+function Set-ObsOutputProfile($ProfileName, $EnableDroidCam, $Width, $Height, $SceneCollection) {
     if (!(Test-Path -LiteralPath $ObsProfileRoot)) {
         New-Item -ItemType Directory -Path $ObsProfileRoot -Force | Out-Null
     }
 
-    $profileDir = Join-Path $ObsProfileRoot "DeepLiveCam"
+    $profileDir = Join-Path $ObsProfileRoot $ProfileName
     if (!(Test-Path -LiteralPath $profileDir)) {
         $sourceProfile = Get-ChildItem -LiteralPath $ObsProfileRoot -Directory -ErrorAction SilentlyContinue |
             Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName "basic.ini") } |
@@ -95,12 +98,12 @@ function Enable-DroidCamOutput {
     }
 
     $preferredBasicIni = Join-Path $profileDir "basic.ini"
-    Set-IniValue $preferredBasicIni "General" "Name" "DeepLiveCam"
-    Set-IniValue $preferredBasicIni "DroidCamVirtualOutput" "AutoStart" "true"
-    Set-IniValue $preferredBasicIni "Video" "BaseCX" "1280"
-    Set-IniValue $preferredBasicIni "Video" "BaseCY" "720"
-    Set-IniValue $preferredBasicIni "Video" "OutputCX" "1280"
-    Set-IniValue $preferredBasicIni "Video" "OutputCY" "720"
+    Set-IniValue $preferredBasicIni "General" "Name" $ProfileName
+    Set-IniValue $preferredBasicIni "DroidCamVirtualOutput" "AutoStart" $EnableDroidCam.ToString().ToLowerInvariant()
+    Set-IniValue $preferredBasicIni "Video" "BaseCX" $Width
+    Set-IniValue $preferredBasicIni "Video" "BaseCY" $Height
+    Set-IniValue $preferredBasicIni "Video" "OutputCX" $Width
+    Set-IniValue $preferredBasicIni "Video" "OutputCY" $Height
     Set-IniValue $preferredBasicIni "Video" "FPSType" "0"
     Set-IniValue $preferredBasicIni "Video" "FPSCommon" "30"
     Set-IniValue $preferredBasicIni "Video" "ScaleType" "bicubic"
@@ -108,26 +111,15 @@ function Enable-DroidCamOutput {
     Set-IniValue $preferredBasicIni "Video" "ColorSpace" "709"
     Set-IniValue $preferredBasicIni "Video" "ColorRange" "Partial"
 
-    Get-ChildItem -LiteralPath $ObsProfileRoot -Directory | ForEach-Object {
-        $basicIni = Join-Path $_.FullName "basic.ini"
-        Set-IniValue $basicIni "DroidCamVirtualOutput" "AutoStart" "true"
-        Set-IniValue $basicIni "Video" "BaseCX" "1280"
-        Set-IniValue $basicIni "Video" "BaseCY" "720"
-        Set-IniValue $basicIni "Video" "OutputCX" "1280"
-        Set-IniValue $basicIni "Video" "OutputCY" "720"
-        Set-IniValue $basicIni "Video" "FPSType" "0"
-        Set-IniValue $basicIni "Video" "FPSCommon" "30"
-    }
-
     $userIni = Join-Path $ObsConfigRoot "user.ini"
-    Set-IniValue $userIni "Basic" "Profile" "DeepLiveCam"
-    Set-IniValue $userIni "Basic" "ProfileDir" "DeepLiveCam"
-    Set-IniValue $userIni "Basic" "SceneCollection" "DeepLiveCam"
-    Set-IniValue $userIni "Basic" "SceneCollectionFile" "DeepLiveCam.json"
-    Add-OperationLog "OBS profile locked to DeepLiveCam with DroidCam autostart"
+    Set-IniValue $userIni "Basic" "Profile" $ProfileName
+    Set-IniValue $userIni "Basic" "ProfileDir" $ProfileName
+    Set-IniValue $userIni "Basic" "SceneCollection" $SceneCollection
+    Set-IniValue $userIni "Basic" "SceneCollectionFile" "$SceneCollection.json"
+    Add-OperationLog "OBS profile=$ProfileName DroidCamAutoStart=$EnableDroidCam route=$OutputRoute"
 }
 
-Add-OperationLog "start UI + OBS requested mode=$Mode"
+Add-OperationLog "start UI + OBS requested mode=$Mode route=$OutputRoute"
 
 $env:PATH = (Join-Path $Root "ffmpeg\bin") + ";" + (Join-Path $Root "python") + ";" + (Join-Path $Root "python\Scripts") + ";" + $env:PATH
 
@@ -167,8 +159,17 @@ if (!(Test-Path -LiteralPath $DefaultSourceFace)) {
     throw "Default source face not found: $DefaultSourceFace"
 }
 
-& powershell -NoProfile -ExecutionPolicy Bypass -File $ResetObs
-Enable-DroidCamOutput
+$ObsProfile = if ($OutputRoute -eq "Mobile") { "DeepLiveCam-Mobile" } else { "DeepLiveCam" }
+$UseDroidCam = $OutputRoute -eq "Desktop"
+$ObsCollection = if ($OutputRoute -eq "Mobile") { "DeepLiveCam-Mobile" } else { "DeepLiveCam" }
+$ObsWidth = if ($OutputRoute -eq "Mobile") { 720 } else { 1280 }
+$ObsHeight = if ($OutputRoute -eq "Mobile") { 1280 } else { 720 }
+if ($OutputRoute -eq "Mobile") {
+    & powershell -NoProfile -ExecutionPolicy Bypass -File $ResetObsMobile
+} else {
+    & powershell -NoProfile -ExecutionPolicy Bypass -File $ResetObs
+}
+Set-ObsOutputProfile $ObsProfile $UseDroidCam $ObsWidth $ObsHeight $ObsCollection
 
 $QualityPreset = "high_quality"
 $UseXSeg = $true
@@ -208,9 +209,17 @@ if ($UseXSeg) {
 Start-Process -FilePath $Python -ArgumentList $DeepLiveArgs -WorkingDirectory $Root
 Add-OperationLog "DeepLiveCam original UI started for OBS window capture mode=$Mode preset=$QualityPreset xseg=$UseXSeg"
 
-Start-Process -FilePath "powershell.exe" -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", $Watcher) -WindowStyle Hidden
+if ($OutputRoute -eq "Mobile") {
+    Start-Process -FilePath "powershell.exe" -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", $Watcher, "-ProfileName", $ObsProfile, "-CollectionName", $ObsCollection, "-StartVirtualCam") -WindowStyle Hidden
+} else {
+    Start-Process -FilePath "powershell.exe" -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", $Watcher, "-ProfileName", $ObsProfile, "-CollectionName", $ObsCollection) -WindowStyle Hidden
+}
 Add-OperationLog "OBS watcher started"
 
 Start-Sleep -Seconds 5
-Start-Process -FilePath $ObsExe -ArgumentList @("--portable", "--profile", "DeepLiveCam", "--collection", "DeepLiveCam", "--scene", "DeepLiveCam") -WorkingDirectory $ObsDir
-Add-OperationLog "OBS started for OBS Output capture with DroidCam Virtual Output autostart"
+$ObsArgs = @("--portable", "--profile", $ObsProfile, "--collection", $ObsCollection, "--scene", $ObsCollection)
+if ($OutputRoute -eq "Mobile") {
+    $ObsArgs += "--startvirtualcam"
+}
+Start-Process -FilePath $ObsExe -ArgumentList $ObsArgs -WorkingDirectory $ObsDir
+Add-OperationLog "OBS started route=$OutputRoute profile=$ObsProfile"

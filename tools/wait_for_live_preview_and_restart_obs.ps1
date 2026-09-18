@@ -1,3 +1,9 @@
+param(
+    [string]$ProfileName = "DeepLiveCam",
+    [string]$CollectionName = "DeepLiveCam",
+    [switch]$StartVirtualCam
+)
+
 $ErrorActionPreference = "Continue"
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
@@ -77,6 +83,10 @@ Remove-Item -LiteralPath (Join-Path $Root "obs-studio\config\obs-studio\.sentine
 & powershell -NoProfile -ExecutionPolicy Bypass -File $ResetScript | Out-Null
 
 if (Test-Path -LiteralPath $ObsExe) {
-    Start-Process -FilePath $ObsExe -WorkingDirectory $ObsDir -ArgumentList @("--portable", "--profile", "DeepLiveCam", "--collection", "DeepLiveCam", "--scene", "DeepLiveCam") -WindowStyle Hidden
-    Write-OpLog "OBS watcher restarted OBS after OBS Output appeared"
+    $obsArgs = @("--portable", "--profile", $ProfileName, "--collection", $CollectionName, "--scene", $CollectionName)
+    if ($StartVirtualCam) {
+        $obsArgs += "--startvirtualcam"
+    }
+    Start-Process -FilePath $ObsExe -WorkingDirectory $ObsDir -ArgumentList $obsArgs -WindowStyle Hidden
+    Write-OpLog "OBS watcher restarted OBS after OBS Output appeared profile=$ProfileName nativeVirtualCam=$StartVirtualCam"
 }
