@@ -1,7 +1,7 @@
 param(
     [ValidateSet("quality", "low_latency")]
     [string]$Mode = "quality",
-    [ValidateSet("Desktop", "Mobile")]
+    [ValidateSet("Desktop", "Mobile", "Android")]
     [string]$OutputRoute = "Desktop"
 )
 
@@ -159,16 +159,22 @@ if (!(Test-Path -LiteralPath $DefaultSourceFace)) {
     throw "Default source face not found: $DefaultSourceFace"
 }
 
-$ObsProfile = if ($OutputRoute -eq "Mobile") { "DeepLiveCam-Mobile" } else { "DeepLiveCam" }
-# WhatsApp Desktop requires DroidCam Video. Mobile mode additionally starts
-# OBS Virtual Camera for Telegram and the later Android-emulator test.
-$UseDroidCam = $true
-$ObsCollection = if ($OutputRoute -eq "Mobile") { "DeepLiveCam-Mobile" } else { "DeepLiveCam" }
+$ObsProfile = switch ($OutputRoute) {
+    "Mobile" { "DeepLiveCam-Mobile" }
+    "Android" { "DeepLiveCam-Android" }
+    default { "DeepLiveCam" }
+}
+# Desktop routes feed WhatsApp through DroidCam. The Android route only needs
+# OBS Virtual Camera and is deliberately isolated from the stable routes.
+$UseDroidCam = $OutputRoute -ne "Android"
+$ObsCollection = $ObsProfile
 # Desktop camera clients negotiate 16:9 reliably. Mobile mode keeps that
 # transport format and places a 9:16 composition inside it.
-$ObsWidth = 1280
-$ObsHeight = 720
-if ($OutputRoute -eq "Mobile") {
+$ObsWidth = if ($OutputRoute -eq "Android") { 720 } else { 1280 }
+$ObsHeight = if ($OutputRoute -eq "Android") { 1280 } else { 720 }
+if ($OutputRoute -eq "Android") {
+    & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "tools\reset_obs_android_scene.ps1")
+} elseif ($OutputRoute -eq "Mobile") {
     & powershell -NoProfile -ExecutionPolicy Bypass -File $ResetObsMobile
 } else {
     & powershell -NoProfile -ExecutionPolicy Bypass -File $ResetObs
@@ -213,7 +219,7 @@ if ($UseXSeg) {
 Start-Process -FilePath $Python -ArgumentList $DeepLiveArgs -WorkingDirectory $Root
 Add-OperationLog "DeepLiveCam original UI started for OBS window capture mode=$Mode preset=$QualityPreset xseg=$UseXSeg"
 
-if ($OutputRoute -eq "Mobile") {
+if ($OutputRoute -in @("Mobile", "Android")) {
     Start-Process -FilePath "powershell.exe" -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", $Watcher, "-ProfileName", $ObsProfile, "-CollectionName", $ObsCollection, "-StartVirtualCam") -WindowStyle Hidden
 } else {
     Start-Process -FilePath "powershell.exe" -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", $Watcher, "-ProfileName", $ObsProfile, "-CollectionName", $ObsCollection) -WindowStyle Hidden
@@ -222,7 +228,7 @@ Add-OperationLog "OBS watcher started"
 
 Start-Sleep -Seconds 5
 $ObsArgs = @("--portable", "--profile", $ObsProfile, "--collection", $ObsCollection, "--scene", $ObsCollection)
-if ($OutputRoute -eq "Mobile") {
+if ($OutputRoute -in @("Mobile", "Android")) {
     $ObsArgs += "--startvirtualcam"
 }
 Start-Process -FilePath $ObsExe -ArgumentList $ObsArgs -WorkingDirectory $ObsDir

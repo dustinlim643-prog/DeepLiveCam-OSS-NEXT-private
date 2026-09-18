@@ -10,10 +10,10 @@ $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $LogPath = Join-Path $Root "logs\operation_log.txt"
 $ObsExe = Join-Path $Root "obs-studio\bin\64bit\obs64.exe"
 $ObsDir = Join-Path $Root "obs-studio\bin\64bit"
-$ResetScript = if ($CollectionName -eq "DeepLiveCam-Mobile") {
-    Join-Path $Root "tools\reset_obs_mobile_scene.ps1"
-} else {
-    Join-Path $Root "tools\reset_obs_scene.ps1"
+$ResetScript = switch ($CollectionName) {
+    "DeepLiveCam-Mobile" { Join-Path $Root "tools\reset_obs_mobile_scene.ps1" }
+    "DeepLiveCam-Android" { Join-Path $Root "tools\reset_obs_android_scene.ps1" }
+    default { Join-Path $Root "tools\reset_obs_scene.ps1" }
 }
 
 if (!(Test-Path -LiteralPath (Split-Path $LogPath))) {

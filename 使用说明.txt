@@ -36,10 +36,14 @@ DeepLiveCam OBS Output 窗口
 8. 新电脑一次性安装 OBS Virtual Camera
 8_INSTALL_OBS_VIRTUAL_CAMERA.cmd
 
+9. 启动独立 Android 模拟器竖屏测试
+9_START_ANDROID_EMULATOR_TEST.cmd
+
 电脑横屏与手机竖屏切换：
 
 1_START_LOW_LATENCY.cmd：1280x720 / 30fps，DroidCam，正式横屏模式。
-6_START_MOBILE_FORMAT.cmd：1280x720 / 30fps 兼容传输，中央 405x720（9:16）画面，DroidCam + OBS Virtual Camera 双输出手机构图模式。
+6_START_MOBILE_FORMAT.cmd：备用方案。1280x720 / 30fps 兼容传输，中央 405x720（9:16）画面；可以通话，但会缩小手机端有效视频面积。
+9_START_ANDROID_EMULATOR_TEST.cmd：实验方案。OBS Virtual Camera 原生 720x1280 -> BlueStacks Android；只用于验证真实手机比例，不替换入口 1。
 
 两个入口使用相同换脸模型、源图和低延迟参数，只切换 OBS profile、scene、分辨率和输出摄像头。每次启动都会自动重建对应 OBS 配置，Windows 重启后无需手动重新设置。
 
