@@ -160,7 +160,9 @@ if (!(Test-Path -LiteralPath $DefaultSourceFace)) {
 }
 
 $ObsProfile = if ($OutputRoute -eq "Mobile") { "DeepLiveCam-Mobile" } else { "DeepLiveCam" }
-$UseDroidCam = $OutputRoute -eq "Desktop"
+# WhatsApp Desktop requires DroidCam Video. Mobile mode additionally starts
+# OBS Virtual Camera for Telegram and the later Android-emulator test.
+$UseDroidCam = $true
 $ObsCollection = if ($OutputRoute -eq "Mobile") { "DeepLiveCam-Mobile" } else { "DeepLiveCam" }
 $ObsWidth = if ($OutputRoute -eq "Mobile") { 720 } else { 1280 }
 $ObsHeight = if ($OutputRoute -eq "Mobile") { 1280 } else { 720 }
