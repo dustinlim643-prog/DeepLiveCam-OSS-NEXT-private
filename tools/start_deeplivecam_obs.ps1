@@ -164,8 +164,10 @@ $ObsProfile = if ($OutputRoute -eq "Mobile") { "DeepLiveCam-Mobile" } else { "De
 # OBS Virtual Camera for Telegram and the later Android-emulator test.
 $UseDroidCam = $true
 $ObsCollection = if ($OutputRoute -eq "Mobile") { "DeepLiveCam-Mobile" } else { "DeepLiveCam" }
-$ObsWidth = if ($OutputRoute -eq "Mobile") { 720 } else { 1280 }
-$ObsHeight = if ($OutputRoute -eq "Mobile") { 1280 } else { 720 }
+# Desktop camera clients negotiate 16:9 reliably. Mobile mode keeps that
+# transport format and places a 9:16 composition inside it.
+$ObsWidth = 1280
+$ObsHeight = 720
 if ($OutputRoute -eq "Mobile") {
     & powershell -NoProfile -ExecutionPolicy Bypass -File $ResetObsMobile
 } else {

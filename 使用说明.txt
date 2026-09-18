@@ -39,7 +39,7 @@ DeepLiveCam OBS Output 窗口
 电脑横屏与手机竖屏切换：
 
 1_START_LOW_LATENCY.cmd：1280x720 / 30fps，DroidCam，正式横屏模式。
-6_START_MOBILE_FORMAT.cmd：720x1280 / 30fps，DroidCam + OBS Virtual Camera 双输出手机竖屏模式。
+6_START_MOBILE_FORMAT.cmd：1280x720 / 30fps 兼容传输，中央 405x720（9:16）画面，DroidCam + OBS Virtual Camera 双输出手机构图模式。
 
 两个入口使用相同换脸模型、源图和低延迟参数，只切换 OBS profile、scene、分辨率和输出摄像头。每次启动都会自动重建对应 OBS 配置，Windows 重启后无需手动重新设置。
 
