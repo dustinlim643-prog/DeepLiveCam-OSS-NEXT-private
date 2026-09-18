@@ -10,7 +10,11 @@ $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $LogPath = Join-Path $Root "logs\operation_log.txt"
 $ObsExe = Join-Path $Root "obs-studio\bin\64bit\obs64.exe"
 $ObsDir = Join-Path $Root "obs-studio\bin\64bit"
-$ResetScript = Join-Path $Root "tools\reset_obs_scene.ps1"
+$ResetScript = if ($CollectionName -eq "DeepLiveCam-Mobile") {
+    Join-Path $Root "tools\reset_obs_mobile_scene.ps1"
+} else {
+    Join-Path $Root "tools\reset_obs_scene.ps1"
+}
 
 if (!(Test-Path -LiteralPath (Split-Path $LogPath))) {
     New-Item -ItemType Directory -Path (Split-Path $LogPath) | Out-Null
@@ -69,6 +73,9 @@ if (!$seen) {
 
 Write-OpLog "OBS watcher detected OBS Output, refreshing OBS capture"
 
+# HighGUI can expose the window title before its capture surface is ready.
+Start-Sleep -Seconds 2
+
 Get-Process obs64,obs32,obs -ErrorAction SilentlyContinue |
     Where-Object { $_.Path -like ($Root + "*") } |
     ForEach-Object {
@@ -88,5 +95,5 @@ if (Test-Path -LiteralPath $ObsExe) {
         $obsArgs += "--startvirtualcam"
     }
     Start-Process -FilePath $ObsExe -WorkingDirectory $ObsDir -ArgumentList $obsArgs -WindowStyle Hidden
-    Write-OpLog "OBS watcher restarted OBS after OBS Output appeared profile=$ProfileName nativeVirtualCam=$StartVirtualCam"
+    Write-OpLog "OBS watcher restarted OBS after OBS Output appeared profile=$ProfileName collection=$CollectionName nativeVirtualCam=$StartVirtualCam"
 }
