@@ -43,7 +43,12 @@ DeepLiveCam OBS Output 窗口
 
 1_START_LOW_LATENCY.cmd：1280x720 / 30fps，DroidCam，正式横屏模式。
 6_START_MOBILE_FORMAT.cmd：备用方案。1280x720 / 30fps 兼容传输，中央 405x720（9:16）画面；可以通话，但会缩小手机端有效视频面积。
-9_START_ANDROID_EMULATOR_TEST.cmd：实验方案。OBS Virtual Camera 原生 720x1280 -> BlueStacks Android；只用于验证真实手机比例，不替换入口 1。
+9_START_ANDROID_EMULATOR_TEST.cmd：实验方案。OBS Virtual Camera 原生 720x1280 -> BlueStacks Android 11 专用实例；只用于验证真实手机比例，不替换入口 1。
+
+模拟器当前状态（2026-09-19）：
+已创建专用实例 Rvc64_3（4 CPU、4 GB、720x1280、240 DPI），启动脚本会自动选择该类专用实例并把摄像头固定为 OBS Virtual Camera。
+WhatsApp 必须使用 Google Play x86_64 拆分版。官网通用 APK 和 ARM64 拆分版在当前 BlueStacks 环境中存在 ABI 冲突，不要覆盖已安装版本。
+Google Play x86_64 版 2.26.36.74 已验证欢迎页稳定、不闪退；账号登录、WhatsApp 摄像头预览和真实通话仍需用户完成最终验收。
 
 两个入口使用相同换脸模型、源图和低延迟参数，只切换 OBS profile、scene、分辨率和输出摄像头。每次启动都会自动重建对应 OBS 配置，Windows 重启后无需手动重新设置。
 

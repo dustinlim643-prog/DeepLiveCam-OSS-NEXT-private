@@ -13,6 +13,20 @@ if (!(Test-Path -LiteralPath $Player) -or !(Test-Path -LiteralPath $Config)) {
     throw "BlueStacks player or configuration was not found."
 }
 
+$armInstances = foreach ($line in Get-Content -LiteralPath $Config -Encoding UTF8) {
+    if ($line -match '^bst\.instance\.([^.]+)\.abi_list="([^"]+)"$') {
+        $abis = $Matches[2] -split ','
+        $instancePath = Join-Path $BlueStacks.DataDir $Matches[1]
+        if ($abis -contains "arm64" -and $abis -notcontains "x86" -and $abis -notcontains "x64" -and (Test-Path -LiteralPath $instancePath)) {
+            Get-Item -LiteralPath $instancePath
+        }
+    }
+}
+$Instance = $armInstances | Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty Name
+if (!$Instance) {
+    throw "A BlueStacks Android 11 ARM-only instance was not found. Create one with ARM 64-bit enabled and x86 disabled."
+}
+
 Get-Process HD-Player -ErrorAction SilentlyContinue | ForEach-Object {
     $null = $_.CloseMainWindow()
 }
@@ -36,16 +50,17 @@ function Set-BlueStacksValue($Name, $Value) {
     [System.IO.File]::WriteAllLines($Config, $lines, [System.Text.UTF8Encoding]::new($false))
 }
 
-Set-BlueStacksValue "bst.instance.Pie64.camera_backend" "qt"
-Set-BlueStacksValue "bst.instance.Pie64.camera_device" "OBS Virtual Camera"
-Set-BlueStacksValue "bst.instance.Pie64.camera_rotation_angle" "0"
-Set-BlueStacksValue "bst.instance.Pie64.custom_resolution_selected" "1"
-Set-BlueStacksValue "bst.instance.Pie64.fb_width" "720"
-Set-BlueStacksValue "bst.instance.Pie64.fb_height" "1280"
-Set-BlueStacksValue "bst.instance.Pie64.max_fps" "30"
+Set-BlueStacksValue "bst.enable_adb_access" "1"
+Set-BlueStacksValue "bst.instance.$Instance.camera_backend" "qt"
+Set-BlueStacksValue "bst.instance.$Instance.camera_device" "OBS Virtual Camera"
+Set-BlueStacksValue "bst.instance.$Instance.camera_rotation_angle" "0"
+Set-BlueStacksValue "bst.instance.$Instance.custom_resolution_selected" "1"
+Set-BlueStacksValue "bst.instance.$Instance.fb_width" "720"
+Set-BlueStacksValue "bst.instance.$Instance.fb_height" "1280"
+Set-BlueStacksValue "bst.instance.$Instance.max_fps" "30"
 
 & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "start_deeplivecam_obs.ps1") -Mode low_latency -OutputRoute Android
 Start-Sleep -Seconds 15
-Start-Process -FilePath $Player -ArgumentList @("--instance", "Pie64")
+Start-Process -FilePath $Player -ArgumentList @("--instance", $Instance)
 
-Write-Host "Android test route started: OBS Virtual Camera 720x1280 -> BlueStacks Pie64."
+Write-Host "Android test route started: OBS Virtual Camera 720x1280 -> BlueStacks $Instance."
