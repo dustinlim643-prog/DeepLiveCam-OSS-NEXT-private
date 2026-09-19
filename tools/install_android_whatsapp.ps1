@@ -11,10 +11,11 @@ if (!(Test-Path -LiteralPath $BlueStacksKey)) {
 }
 
 $BlueStacks = Get-ItemProperty -LiteralPath $BlueStacksKey
+$Player = Join-Path $BlueStacks.InstallDir "HD-Player.exe"
 $Adb = Join-Path $BlueStacks.InstallDir "HD-Adb.exe"
 $Config = Join-Path $BlueStacks.UserDefinedDir "bluestacks.conf"
-if (!(Test-Path -LiteralPath $Adb) -or !(Test-Path -LiteralPath $Config)) {
-    throw "BlueStacks ADB or configuration was not found."
+if (!(Test-Path -LiteralPath $Player) -or !(Test-Path -LiteralPath $Adb) -or !(Test-Path -LiteralPath $Config)) {
+    throw "BlueStacks player, ADB, or configuration was not found."
 }
 
 $armInstances = foreach ($line in Get-Content -LiteralPath $Config -Encoding UTF8) {
@@ -61,9 +62,26 @@ if (!$base -or !$x64 -or !$density -or !$language) {
     throw "The APK folder must contain base, x86_64, density, and language split APKs."
 }
 
-& $Adb connect $Serial | Out-Null
-if (((& $Adb -s $Serial get-state) -join "").Trim() -ne "device") {
-    throw "BlueStacks ADB is not ready. Start entry 9 first."
+$oldPreference = $ErrorActionPreference
+$ErrorActionPreference = "SilentlyContinue"
+& $Adb connect $Serial 2>$null | Out-Null
+$state = ((& $Adb -s $Serial get-state 2>$null) -join "").Trim()
+$ErrorActionPreference = $oldPreference
+if ($state -ne "device") {
+    Start-Process -FilePath $Player -ArgumentList @("--instance", $Instance)
+    $deadline = (Get-Date).AddSeconds(180)
+    do {
+        Start-Sleep -Seconds 5
+        $oldPreference = $ErrorActionPreference
+        $ErrorActionPreference = "SilentlyContinue"
+        & $Adb connect $Serial 2>$null | Out-Null
+        $state = ((& $Adb -s $Serial get-state 2>$null) -join "").Trim()
+        $boot = if ($state -eq "device") { ((& $Adb -s $Serial shell getprop sys.boot_completed 2>$null) -join "").Trim() } else { "" }
+        $ErrorActionPreference = $oldPreference
+    } while (($state -ne "device" -or $boot -ne "1") -and (Get-Date) -lt $deadline)
+    if ($state -ne "device" -or $boot -ne "1") {
+        throw "BlueStacks did not finish booting within 180 seconds."
+    }
 }
 
 $apks = @($base.FullName, $x64.FullName, $density.FullName, $language.FullName)

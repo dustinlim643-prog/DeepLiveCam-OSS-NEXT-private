@@ -1,4 +1,4 @@
-﻿DeepLiveCam OSS_READY 最终使用说明
+DeepLiveCam OSS_NEXT 使用说明
 
 项目目标：
 实时单图换脸，输出到 OBS，再通过 DroidCam Video 给 WhatsApp Desktop 使用。
@@ -10,46 +10,31 @@ DeepLiveCam OBS Output 窗口
 -> Windows 设备 DroidCam Video
 -> WhatsApp Desktop 选择 DroidCam Video
 
-根目录入口：
+根目录只保留 6 个入口，并按日常使用频率排序：
 
-1. 启动
-1_START_LOW_LATENCY.cmd
+1_START_DESKTOP_STABLE.cmd
+正式桌面横屏模式。DeepLiveCam -> OBS -> DroidCam Video -> WhatsApp Desktop。
 
-2. 停止
-2_STOP.cmd
+2_START_ANDROID_MOBILE.cmd
+Android 手机竖屏模式。自动配置并检查 BlueStacks、OBS Virtual Camera、QuickQ 和 WhatsApp。
 
-3. 查看最近健康日志
-3_SHOW_RECENT_HEALTH.cmd
+3_STOP_ALL.cmd
+停止 DeepLiveCam、OBS 和本项目相关后台进程。
 
-4. 生成一次完整稳定性诊断快照
-4_CAPTURE_STABILITY_SNAPSHOT.cmd
+4_DIAGNOSTICS_MENU.cmd
+低频诊断菜单：Android 完整检查、桌面 WhatsApp 检查、稳定性快照、30 秒性能报告、最近健康日志。
 
-5. 诊断 WhatsApp 视频链路
-5_DIAGNOSE_WHATSAPP_VIDEO.cmd
+5_SETUP_NEW_DEVICE.cmd
+新设备一次性安装菜单：OBS Virtual Camera、WhatsApp x86_64 拆分包。日常不使用。
 
-6. 启动手机竖屏格式（只切换 OBS，不启动模拟器）
-6_START_MOBILE_FORMAT.cmd
-
-7. 采集当前输出路线性能报告
-7_CAPTURE_ROUTE_RESULT.cmd
-
-8. 新电脑一次性安装 OBS Virtual Camera
-8_INSTALL_OBS_VIRTUAL_CAMERA.cmd
-
-9. 启动独立 Android 模拟器竖屏测试
-9_START_ANDROID_EMULATOR_TEST.cmd
-
-10. 检查 Android 模拟器完整链路（不重启、不改配置）
-10_CHECK_ANDROID_ROUTE.cmd
-
-11. 新设备一次性安装并核验 WhatsApp x86_64 拆分包
-11_INSTALL_ANDROID_WHATSAPP.cmd
+6_START_MOBILE_CROP_BACKUP.cmd
+兼容性备用路线：桌面通话保持 1280x720，中央放置 405x720 竖屏内容。效果有黑边缩小问题，仅在正式路线异常时使用。
 
 电脑横屏与手机竖屏切换：
 
-1_START_LOW_LATENCY.cmd：1280x720 / 30fps，DroidCam，正式横屏模式。
-6_START_MOBILE_FORMAT.cmd：备用方案。1280x720 / 30fps 兼容传输，中央 405x720（9:16）画面；可以通话，但会缩小手机端有效视频面积。
-9_START_ANDROID_EMULATOR_TEST.cmd：实验方案。OBS Virtual Camera 原生 720x1280 -> BlueStacks Android 11 专用实例；只用于验证真实手机比例，不替换入口 1。
+1_START_DESKTOP_STABLE.cmd：1280x720 / 30fps，DroidCam，正式横屏模式。
+6_START_MOBILE_CROP_BACKUP.cmd：备用方案。1280x720 / 30fps 兼容传输，中央 405x720（9:16）画面；可以通话，但会缩小手机端有效视频面积。
+2_START_ANDROID_MOBILE.cmd：实验方案。OBS Virtual Camera 原生 720x1280 -> BlueStacks Android 11 专用实例；只用于验证真实手机比例，不替换入口 1。
 
 模拟器当前状态（2026-09-19）：
 已创建专用实例 Rvc64_3（4 CPU、4 GB、720x1280、240 DPI），启动脚本会自动选择该类专用实例并把摄像头固定为 OBS Virtual Camera。
@@ -59,18 +44,18 @@ Google Play x86_64 版 2.26.36.74 已验证欢迎页稳定、不闪退；账号�
 Android 模拟器日常启动：
 
 1. QuickQ 保持已连接，路由选择“全局”。
-2. 双击 9_START_ANDROID_EMULATOR_TEST.cmd。
+2. 双击 2_START_ANDROID_MOBILE.cmd。
 3. 脚本自动固定 BlueStacks 摄像头、720x1280、4 CPU、4 GB、240 DPI 和 30fps。
 4. 脚本自动启动 DeepLiveCam、OBS Virtual Camera 和专用 BlueStacks 实例。
 5. 脚本自动写入 Android 代理 10.0.2.2:8800，并比较电脑与模拟器的 QuickQ 公网出口。
 6. 脚本自动核验 WhatsApp 必须为 x86_64、官方签名 2b6cb416。
 7. 看到 RESULT: PASS 后再进入 WhatsApp；报告保存在 logs\android_route_YYYYMMDD_HHMMSS.txt。
 
-出现问题时只运行 10_CHECK_ANDROID_ROUTE.cmd。它不重启程序、不改配置，会检查实例、ADB、分辨率、摄像头、QuickQ 端口与出口、WhatsApp ABI/签名、OBS profile 和 OBS Output，不再重复人工猜测。
+出现问题时只运行 4_DIAGNOSTICS_MENU.cmd（选项 1）。它不重启程序、不改配置，会检查实例、ADB、分辨率、摄像头、QuickQ 端口与出口、WhatsApp ABI/签名、OBS profile 和 OBS Output，不再重复人工猜测。
 
 新设备迁移边界：
 
-Git 可以同步脚本和配置逻辑，但不能同步 BlueStacks、QuickQ、模型、Python/OBS 运行环境、WhatsApp APK 和账号授权。新设备只需完成一次：安装运行环境；创建一个 Android 11 ARM 专用实例；把 WhatsApp-Play-x86_64 文件夹放到 third_party 或 BlueStacks SharedFolder；运行入口 11；由用户本人接受条款并扫码关联账号。完成后日常只使用入口 9，不需要重走 ABI、代理、摄像头和分辨率排查。
+Git 可以同步脚本和配置逻辑，但不能同步 BlueStacks、QuickQ、模型、Python/OBS 运行环境、WhatsApp APK 和账号授权。新设备只需完成一次：安装运行环境；创建一个 Android 11 ARM 专用实例；把 WhatsApp-Play-x86_64 文件夹放到 third_party 或 BlueStacks SharedFolder；运行 `5_SETUP_NEW_DEVICE.cmd` 选项 2；由用户本人接受条款并扫码关联账号。完成后日常只使用 `2_START_ANDROID_MOBILE.cmd`，不需要重走 ABI、代理、摄像头和分辨率排查。
 
 两个入口使用相同换脸模型、源图和低延迟参数，只切换 OBS profile、scene、分辨率和输出摄像头。每次启动都会自动重建对应 OBS 配置，Windows 重启后无需手动重新设置。
 
@@ -79,7 +64,7 @@ WhatsApp 里选择 DroidCam Video。
 
 启动步骤：
 
-1. 双击 1_START_LOW_LATENCY.cmd。
+1. 双击 1_START_DESKTOP_STABLE.cmd。
 2. 等 DeepLiveCam 界面、OBS、OBS Output 窗口出现。
 3. DeepLiveCam 里确认源脸图片和摄像头。
 4. 点击 Live / 直播。
@@ -123,7 +108,7 @@ GPEN512 是后处理增强，不是主换脸模型。
 新设备 WhatsApp 选择 DroidCam Video 但没有换脸画面：
 
 先运行：
-5_DIAGNOSE_WHATSAPP_VIDEO.cmd
+4_DIAGNOSTICS_MENU.cmd（选项 2）
 
 重点看：
 
@@ -142,8 +127,8 @@ GPEN512 是后处理增强，不是主换脸模型。
 
 正确顺序：
 
-1. 先运行 2_STOP.cmd。
-2. 再运行 1_START_LOW_LATENCY.cmd。
+1. 先运行 3_STOP_ALL.cmd。
+2. 再运行 1_START_DESKTOP_STABLE.cmd。
 3. 等 OBS Output 窗口出现并有画面。
 4. 等 OBS 预览有画面。
 5. 再打开 WhatsApp，选择 DroidCam Video。
@@ -189,11 +174,11 @@ logs\stability_snapshot_YYYYMMDD_HHMMSS.txt
 
 帧率稳定性排查：
 
-1. 启动 1_START_LOW_LATENCY.cmd。
+1. 启动 1_START_DESKTOP_STABLE.cmd。
 2. WhatsApp 接通后保持 2-3 分钟。
 3. 不同时改源图、XSeg、GPEN、OBS 滤镜。
-4. 测试结束后先运行 4_CAPTURE_STABILITY_SNAPSHOT.cmd。
-5. 如果只想快速看最近几行，再运行 3_SHOW_RECENT_HEALTH.cmd。
+4. 测试结束后先运行 4_DIAGNOSTICS_MENU.cmd（选项 3）。
+5. 如果只想快速看最近几行，再运行 4_DIAGNOSTICS_MENU.cmd（选项 5）。
 6. 重点看 live_health 里的：
    process_fps
    camera_fps
@@ -256,7 +241,7 @@ OBS 可做但未测试：
 
 当前 DeepLiveCam 实时参数：
 
-启动：1_START_LOW_LATENCY.cmd
+启动：1_START_DESKTOP_STABLE.cmd
 源图：source_faces\current_test_source.jpg
 主模型：HyperSwap 256
 Face Enhancer：None
@@ -298,7 +283,7 @@ OBS 锐化：当前 0.18，可测 0.12 / 0.18 / 0.24。过高会放大边缘瑕�
 
 2026-09-02 当前稳定参考值：
 
-启动入口：1_START_LOW_LATENCY.cmd
+启动入口：1_START_DESKTOP_STABLE.cmd
 主模型：HyperSwap 256
 Face Enhancer：None
 XSeg：关闭
@@ -348,7 +333,7 @@ DeepLiveCam 主界面 -> 细节调整 Refinement -> 嘴部遮罩 Mouth Mask
 现在只做日志和判断，不自动挂断 WhatsApp。
 自动断线必须等多轮日志证明误判率低之后再考虑。
 
-4_CAPTURE_STABILITY_SNAPSHOT.cmd 会记录：
+4_DIAGNOSTICS_MENU.cmd（选项 3） 会记录：
 
 1. DeepLiveCam 处理 FPS、摄像头 FPS、掉脸率、队列、分段耗时。
 2. OBS 是否捕获 OBS Output，DroidCam 输出是否 active/inactive。
