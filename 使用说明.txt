@@ -15,49 +15,40 @@ DeepLiveCam OBS Output 窗口
 1_START_DESKTOP_STABLE.cmd
 正式桌面横屏模式。DeepLiveCam -> OBS -> DroidCam Video -> WhatsApp Desktop。
 
-2_START_ANDROID_MOBILE.cmd
-Android 手机竖屏模式。自动配置并检查 BlueStacks、OBS Virtual Camera、QuickQ 和 WhatsApp。
+2_TEST_AVD_PHONE.cmd
+官方 Android AVD 手机前摄验证。只验证 DroidCam 输入和前摄 90/270 度元数据；通过前不登录 WhatsApp。
 
 3_STOP_ALL.cmd
 停止 DeepLiveCam、OBS 和本项目相关后台进程。
 
 4_DIAGNOSTICS_MENU.cmd
-低频诊断菜单：Android 完整检查、桌面 WhatsApp 检查、稳定性快照、30 秒性能报告、最近健康日志。
+低频诊断菜单：AVD 前置条件、桌面 WhatsApp、稳定性快照、30 秒性能报告、最近健康日志。
 
 5_SETUP_NEW_DEVICE.cmd
-新设备一次性安装菜单：OBS Virtual Camera、WhatsApp x86_64 拆分包。日常不使用。
+新设备一次性安装菜单。当前只保留 OBS Virtual Camera 安装；日常不使用。
 
 6_START_MOBILE_CROP_BACKUP.cmd
 兼容性备用路线：桌面通话保持 1280x720，中央放置 405x720 竖屏内容。效果有黑边缩小问题，仅在正式路线异常时使用。
 
-电脑横屏与手机竖屏切换：
+电脑横屏与手机方案：
 
 1_START_DESKTOP_STABLE.cmd：1280x720 / 30fps，DroidCam，正式横屏模式。
 6_START_MOBILE_CROP_BACKUP.cmd：备用方案。1280x720 / 30fps 兼容传输，中央 405x720（9:16）画面；可以通话，但会缩小手机端有效视频面积。
-2_START_ANDROID_MOBILE.cmd：实验方案。OBS Virtual Camera 原生 720x1280 -> BlueStacks Android 11 专用实例；只用于验证真实手机比例，不替换入口 1。
+2_TEST_AVD_PHONE.cmd：新的手机模式验证入口。官方 Android Emulator 将 Windows `DroidCam Video` 映射为 AVD 前置摄像头，第一道硬门槛是 `Facing: Front` 且 `Orientation: 90/270`。
 
-模拟器当前状态（2026-09-19）：
-已创建专用实例 Rvc64_3（4 CPU、4 GB、720x1280、240 DPI），启动脚本会自动选择该类专用实例并把摄像头固定为 OBS Virtual Camera。
-WhatsApp 必须使用 Google Play x86_64 拆分版。官网通用 APK 和 ARM64 拆分版在当前 BlueStacks 环境中存在 ABI 冲突，不要覆盖已安装版本。
-Google Play x86_64 版 2.26.36.74 已验证欢迎页稳定、不闪退；账号登录、WhatsApp 摄像头预览和真实通话仍需用户完成最终验收。
+AVD 当前状态（2026-10-11）：
 
-Android 模拟器日常启动：
-
-1. QuickQ 保持已连接，路由选择“全局”。
-2. 双击 2_START_ANDROID_MOBILE.cmd。
-3. 脚本自动固定 BlueStacks 摄像头、720x1280、4 CPU、4 GB、240 DPI 和 30fps。
-4. 脚本自动启动 DeepLiveCam、OBS Virtual Camera 和专用 BlueStacks 实例。
-5. 脚本自动写入 Android 代理 10.0.2.2:8800，并比较电脑与模拟器的 QuickQ 公网出口。
-6. 脚本自动核验 WhatsApp 必须为 x86_64、官方签名 2b6cb416。
-7. 看到 RESULT: PASS 后再进入 WhatsApp；报告保存在 logs\android_route_YYYYMMDD_HHMMSS.txt。
-
-出现问题时只运行 4_DIAGNOSTICS_MENU.cmd（选项 1）。它不重启程序、不改配置，会检查实例、ADB、分辨率、摄像头、QuickQ 端口与出口、WhatsApp ABI/签名、OBS profile 和 OBS Output，不再重复人工猜测。
+1. BlueStacks 路线已淘汰。它虽然能读取实时换脸画面，但相机 HAL 报告方向为 0 度，对方手机仍收到横屏容器。
+2. Root、Magisk、LSPosed、修改版 WhatsApp 全部取消。
+3. 下一路线只使用官方 Android Emulator、Google Play 手机镜像、官方 WhatsApp 和现有 DroidCam Video。
+4. 当前电脑尚未安装 Android SDK/Emulator。运行 `2_TEST_AVD_PHONE.cmd` 会生成明确报告，不会修改桌面稳定链路。
+5. 前摄元数据通过后，先在 Android 相机中验证实时输入，再由用户登录 WhatsApp，最终只以对方手机是否显示原生全屏竖屏为准。
 
 新设备迁移边界：
 
-Git 可以同步脚本和配置逻辑，但不能同步 BlueStacks、QuickQ、模型、Python/OBS 运行环境、WhatsApp APK 和账号授权。新设备只需完成一次：安装运行环境；创建一个 Android 11 ARM 专用实例；把 WhatsApp-Play-x86_64 文件夹放到 third_party 或 BlueStacks SharedFolder；运行 `5_SETUP_NEW_DEVICE.cmd` 选项 2；由用户本人接受条款并扫码关联账号。完成后日常只使用 `2_START_ANDROID_MOBILE.cmd`，不需要重走 ABI、代理、摄像头和分辨率排查。
+Git 可以同步脚本和配置逻辑，但不能同步 Android SDK/AVD、模型、Python/OBS 运行环境和 WhatsApp 账号授权。AVD 路线验收通过后再固化新设备一键部署。
 
-两个入口使用相同换脸模型、源图和低延迟参数，只切换 OBS profile、scene、分辨率和输出摄像头。每次启动都会自动重建对应 OBS 配置，Windows 重启后无需手动重新设置。
+入口 1 是电脑横屏正式模式；入口 6 是桌面端竖屏裁切备用模式；入口 2 当前只负责官方 AVD 手机前摄验证。
 
 不要再使用 OBS Virtual Camera 作为 WhatsApp 摄像头。
 WhatsApp 里选择 DroidCam Video。

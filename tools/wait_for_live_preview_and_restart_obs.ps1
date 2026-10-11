@@ -1,6 +1,8 @@
 param(
     [string]$ProfileName = "DeepLiveCam",
     [string]$CollectionName = "DeepLiveCam",
+    [string]$ObsInstallRoot = "",
+    [string]$ObsConfigRoot = "",
     [switch]$StartVirtualCam
 )
 
@@ -8,11 +10,16 @@ $ErrorActionPreference = "Continue"
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $LogPath = Join-Path $Root "logs\operation_log.txt"
-$ObsExe = Join-Path $Root "obs-studio\bin\64bit\obs64.exe"
-$ObsDir = Join-Path $Root "obs-studio\bin\64bit"
+if ([string]::IsNullOrWhiteSpace($ObsInstallRoot)) {
+    $ObsInstallRoot = Join-Path $Root "obs-studio"
+}
+if ([string]::IsNullOrWhiteSpace($ObsConfigRoot)) {
+    $ObsConfigRoot = Join-Path $ObsInstallRoot "config\obs-studio"
+}
+$ObsExe = Join-Path $ObsInstallRoot "bin\64bit\obs64.exe"
+$ObsDir = Join-Path $ObsInstallRoot "bin\64bit"
 $ResetScript = switch ($CollectionName) {
     "DeepLiveCam-Mobile" { Join-Path $Root "tools\reset_obs_mobile_scene.ps1" }
-    "DeepLiveCam-Android" { Join-Path $Root "tools\reset_obs_android_scene.ps1" }
     default { Join-Path $Root "tools\reset_obs_scene.ps1" }
 }
 
@@ -86,7 +93,7 @@ Get-Process obs64,obs32,obs -ErrorAction SilentlyContinue |
     Where-Object { $_.Path -like ($Root + "*") } |
     Stop-Process -Force -ErrorAction SilentlyContinue
 
-Remove-Item -LiteralPath (Join-Path $Root "obs-studio\config\obs-studio\.sentinel") -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath (Join-Path $ObsConfigRoot ".sentinel") -Recurse -Force -ErrorAction SilentlyContinue
 & powershell -NoProfile -ExecutionPolicy Bypass -File $ResetScript | Out-Null
 
 if (Test-Path -LiteralPath $ObsExe) {

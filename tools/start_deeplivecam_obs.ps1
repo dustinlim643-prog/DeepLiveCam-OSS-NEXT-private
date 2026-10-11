@@ -1,7 +1,7 @@
 param(
     [ValidateSet("quality", "low_latency")]
     [string]$Mode = "quality",
-    [ValidateSet("Desktop", "Mobile", "Android")]
+    [ValidateSet("Desktop", "Mobile")]
     [string]$OutputRoute = "Desktop"
 )
 
@@ -9,16 +9,17 @@ $ErrorActionPreference = "Stop"
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $Logs = Join-Path $Root "logs"
-$ObsExe = Join-Path $Root "obs-studio\bin\64bit\obs64.exe"
-$ObsDir = Join-Path $Root "obs-studio\bin\64bit"
+$ObsInstallRoot = Join-Path $Root "obs-studio"
+$ObsExe = Join-Path $ObsInstallRoot "bin\64bit\obs64.exe"
+$ObsDir = Join-Path $ObsInstallRoot "bin\64bit"
 $Python = Join-Path $Root "python\python.exe"
 $RunPy = Join-Path $Root "run.py"
 $DefaultSourceFace = Join-Path $Root "source_faces\current_test_source.jpg"
 $ResetObs = Join-Path $Root "tools\reset_obs_scene.ps1"
 $ResetObsMobile = Join-Path $Root "tools\reset_obs_mobile_scene.ps1"
 $Watcher = Join-Path $Root "tools\wait_for_live_preview_and_restart_obs.ps1"
-$ObsConfigRoot = Join-Path $Root "obs-studio\config\obs-studio"
-$ObsProfileRoot = Join-Path $Root "obs-studio\config\obs-studio\basic\profiles"
+$ObsConfigRoot = Join-Path $ObsInstallRoot "config\obs-studio"
+$ObsProfileRoot = Join-Path $ObsConfigRoot "basic\profiles"
 
 if (!(Test-Path -LiteralPath $Logs)) {
     New-Item -ItemType Directory -Path $Logs | Out-Null
@@ -144,7 +145,7 @@ Get-CimInstance Win32_Process | Where-Object {
     Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
 }
 
-Remove-Item -LiteralPath (Join-Path $Root "obs-studio\config\obs-studio\.sentinel") -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath (Join-Path $ObsConfigRoot ".sentinel") -Recurse -Force -ErrorAction SilentlyContinue
 
 if (!(Test-Path -LiteralPath $Python)) {
     throw "Python runtime not found: $Python"
@@ -159,22 +160,12 @@ if (!(Test-Path -LiteralPath $DefaultSourceFace)) {
     throw "Default source face not found: $DefaultSourceFace"
 }
 
-$ObsProfile = switch ($OutputRoute) {
-    "Mobile" { "DeepLiveCam-Mobile" }
-    "Android" { "DeepLiveCam-Android" }
-    default { "DeepLiveCam" }
-}
-# Desktop routes feed WhatsApp through DroidCam. The Android route only needs
-# OBS Virtual Camera and is deliberately isolated from the stable routes.
-$UseDroidCam = $OutputRoute -ne "Android"
+$ObsProfile = if ($OutputRoute -eq "Mobile") { "DeepLiveCam-Mobile" } else { "DeepLiveCam" }
+$UseDroidCam = $true
 $ObsCollection = $ObsProfile
-# Desktop camera clients negotiate 16:9 reliably. Mobile mode keeps that
-# transport format and places a 9:16 composition inside it.
-$ObsWidth = if ($OutputRoute -eq "Android") { 720 } else { 1280 }
-$ObsHeight = if ($OutputRoute -eq "Android") { 1280 } else { 720 }
-if ($OutputRoute -eq "Android") {
-    & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "tools\reset_obs_android_scene.ps1")
-} elseif ($OutputRoute -eq "Mobile") {
+$ObsWidth = 1280
+$ObsHeight = 720
+if ($OutputRoute -eq "Mobile") {
     & powershell -NoProfile -ExecutionPolicy Bypass -File $ResetObsMobile
 } else {
     & powershell -NoProfile -ExecutionPolicy Bypass -File $ResetObs
@@ -219,16 +210,16 @@ if ($UseXSeg) {
 Start-Process -FilePath $Python -ArgumentList $DeepLiveArgs -WorkingDirectory $Root
 Add-OperationLog "DeepLiveCam original UI started for OBS window capture mode=$Mode preset=$QualityPreset xseg=$UseXSeg"
 
-if ($OutputRoute -in @("Mobile", "Android")) {
-    Start-Process -FilePath "powershell.exe" -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", $Watcher, "-ProfileName", $ObsProfile, "-CollectionName", $ObsCollection, "-StartVirtualCam") -WindowStyle Hidden
+if ($OutputRoute -eq "Mobile") {
+    Start-Process -FilePath "powershell.exe" -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", $Watcher, "-ProfileName", $ObsProfile, "-CollectionName", $ObsCollection, "-ObsInstallRoot", $ObsInstallRoot, "-ObsConfigRoot", $ObsConfigRoot, "-StartVirtualCam") -WindowStyle Hidden
 } else {
-    Start-Process -FilePath "powershell.exe" -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", $Watcher, "-ProfileName", $ObsProfile, "-CollectionName", $ObsCollection) -WindowStyle Hidden
+    Start-Process -FilePath "powershell.exe" -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", $Watcher, "-ProfileName", $ObsProfile, "-CollectionName", $ObsCollection, "-ObsInstallRoot", $ObsInstallRoot, "-ObsConfigRoot", $ObsConfigRoot) -WindowStyle Hidden
 }
 Add-OperationLog "OBS watcher started"
 
 Start-Sleep -Seconds 5
 $ObsArgs = @("--portable", "--profile", $ObsProfile, "--collection", $ObsCollection, "--scene", $ObsCollection)
-if ($OutputRoute -in @("Mobile", "Android")) {
+if ($OutputRoute -eq "Mobile") {
     $ObsArgs += "--startvirtualcam"
 }
 Start-Process -FilePath $ObsExe -ArgumentList $ObsArgs -WorkingDirectory $ObsDir
