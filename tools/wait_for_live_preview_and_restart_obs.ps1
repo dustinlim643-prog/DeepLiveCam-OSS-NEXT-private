@@ -20,6 +20,7 @@ $ObsExe = Join-Path $ObsInstallRoot "bin\64bit\obs64.exe"
 $ObsDir = Join-Path $ObsInstallRoot "bin\64bit"
 $ResetScript = switch ($CollectionName) {
     "DeepLiveCam-Mobile" { Join-Path $Root "tools\reset_obs_mobile_scene.ps1" }
+    "DeepLiveCam-AVD-4x3" { Join-Path $Root "tools\reset_obs_avd_4x3_scene.ps1" }
     default { Join-Path $Root "tools\reset_obs_scene.ps1" }
 }
 

@@ -81,7 +81,7 @@ try {
     }
     if (!$Webcam) {
         Add-Report "RESULT: DROIDCAM_WEBCAM_NOT_IDENTIFIED"
-        Add-Report "Run again with an explicit camera, for example: 2_TEST_AVD_PHONE.cmd -Webcam webcam1"
+        Add-Report "Run the phone route with an explicit camera, for example: 2_START_AVD_PHONE_4X3.cmd -Webcam webcam1"
         Save-Report
         exit 2
     }
