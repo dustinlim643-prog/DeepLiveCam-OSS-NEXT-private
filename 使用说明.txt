@@ -42,9 +42,13 @@ DeepLiveCam OBS Output 窗口
 7. 现场确认 WhatsApp 实际申请两路 640x480；Front/90 度正确，但旋转后仍是 3:4，不是 9:16，继续调整 OBS 尺寸无法解决根因。
 8. 2026-10-16 MEmu + WeCam WDM 验收失败：WeCam 能读取 OBS 并输出实时画面，但 MEmu 重启并打开 Android 相机后仍为黑屏；WeCam 同时显示“当前没有程序使用本摄像头”，证明 MEmu 没有打开 WeCam WDM 设备。
 9. 旧 e2eSoft VCam 屏幕/窗口捕获路线受 DPI、遮挡和窗口状态影响，不能作为稳定实时链路，已淘汰。
-10. 普通 Windows Android 模拟器路线到此停止，不再继续叠加虚拟摄像头桥接。
+10. 2026-10-16 官方 AVD + WeCam WDM 已完成最终通话：AVD 能识别 WeCam，Camera HAL 正确报告 Front/90 并公布 1280x720；但 WhatsApp 仍固定申请两路 640x480。
+11. WeCam 改为 640x480 后可以正常传输实时换脸画面，但实际通话仍有明显上下黑区，对方手机不是手机对手机的全屏竖屏效果，最终判定失败。
+12. 普通 Windows Android 模拟器路线到此停止，不再调整 OBS/WeCam 尺寸，也不再叠加虚拟摄像头桥接。
 
-尚可验证的唯一低成本软件组合：官方 AVD + WeCam WDM。只检查 AVD 能否把 WeCam 的 1280x720 输出映射为 Front/90，并让 WhatsApp 实际申请 1280x720。任一步失败立即停止。该候选尚未恢复为启动入口。
+重复测试禁止条件：只要 WhatsApp 实际申请 `640x480`，后续调整 OBS 画布、WeCam 项目尺寸或模拟器窗口比例都只能改变帧内构图，不能改变远端布局，不再进入通话测试。
+
+新方案准入条件：必须先证明它能改变 Camera HAL/Camera2 流配置或 WhatsApp 的设备与布局判定；如果预检仍是 `Front/90 + WhatsApp 640x480`，直接停止，不安装更多桥接、不重新登录、不拨号。
 
 更彻底但复杂的路线是自定义 AOSP/Cuttlefish Camera HAL，直接声明 Front/90 和 1280x720@30；这属于独立开发项目，不纳入日常启动脚本。
 
