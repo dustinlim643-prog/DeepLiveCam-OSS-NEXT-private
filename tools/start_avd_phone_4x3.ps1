@@ -134,6 +134,30 @@ try {
     if (!$Serial -or $boot -ne "1") { throw "AVD did not complete boot within 4 minutes." }
     Add-Report "ADB: $Serial"
 
+    # Quick Boot can restore a dead Camera app client that keeps the HAL busy.
+    & $Adb -s $Serial shell am force-stop com.android.camera2 | Out-Null
+    Start-Sleep -Seconds 1
+    $CameraDump = (& $Adb -s $Serial shell dumpsys media.camera 2>&1) -join "`n"
+    $staleCamera = [regex]::Match($CameraDump, 'Client PID:\s*(\d+)[\s\S]{0,120}?Client package:\s*com\.android\.camera2')
+    if ($staleCamera.Success) {
+        $liveCameraPid = ((& $Adb -s $Serial shell pidof com.android.camera2 2>$null) -join "").Trim()
+        if (!$liveCameraPid) {
+            Add-Report "Quick Boot restored a stale Camera2 client; restarting Android guest once."
+            & $Adb -s $Serial reboot | Out-Null
+            $rebootDeadline = (Get-Date).AddMinutes(2)
+            $boot = ""
+            do {
+                Start-Sleep -Seconds 3
+                $state = ((& $Adb -s $Serial get-state 2>$null) -join "").Trim()
+                if ($state -eq "device") {
+                    $boot = ((& $Adb -s $Serial shell getprop sys.boot_completed 2>$null) -join "").Trim()
+                }
+            } while ($boot -ne "1" -and (Get-Date) -lt $rebootDeadline)
+            if ($boot -ne "1") { throw "Android guest restart did not complete within 2 minutes." }
+            & $Adb -s $Serial shell am force-stop com.android.camera2 | Out-Null
+        }
+    }
+
     & $Adb -s $Serial shell settings put system accelerometer_rotation 0 | Out-Null
     & $Adb -s $Serial shell settings put system user_rotation 0 | Out-Null
     $CameraDump = (& $Adb -s $Serial shell dumpsys media.camera 2>&1) -join "`n"

@@ -122,6 +122,8 @@ MEmu + WeCam：MEmu 没有打开 WeCam WDM 摄像头，Android 端黑屏。
 
 该路线保留为入口 2，用于复现已经跑通的模拟器链路。入口会动态查找 DroidCam 对应的 webcamN，并优先使用当前 API 37 AVD 的 Quick Boot；只有快照无效时才需要冷启动。
 
+已知黑屏处理：Quick Boot 偶尔会恢复已经死亡的 Android Camera2 客户端，使 WhatsApp 无法取得前置摄像头。入口 2 会检测该状态并自动重启一次 Android 客体系统；不要因此更换 OBS、DroidCam 或画面尺寸。
+
 官方 AVD + WeCam：能报告 Front/90，也能传输实时换脸画面；WhatsApp 仍固定请求两路 640x480，实际通话有明显上下黑区，最终失败。
 
 Root、Magisk、LSPosed、修改版 WhatsApp：因稳定性、维护和账号风险取消。
