@@ -1,7 +1,7 @@
 param(
     [ValidateSet("quality", "low_latency")]
     [string]$Mode = "quality",
-    [ValidateSet("Desktop", "Mobile", "AVD4x3")]
+    [ValidateSet("Desktop", "Mobile")]
     [string]$OutputRoute = "Desktop"
 )
 
@@ -17,7 +17,6 @@ $RunPy = Join-Path $Root "run.py"
 $DefaultSourceFace = Join-Path $Root "source_faces\current_test_source.jpg"
 $ResetObs = Join-Path $Root "tools\reset_obs_scene.ps1"
 $ResetObsMobile = Join-Path $Root "tools\reset_obs_mobile_scene.ps1"
-$ResetObsAvd4x3 = Join-Path $Root "tools\reset_obs_avd_4x3_scene.ps1"
 $Watcher = Join-Path $Root "tools\wait_for_live_preview_and_restart_obs.ps1"
 $ObsConfigRoot = Join-Path $ObsInstallRoot "config\obs-studio"
 $ObsProfileRoot = Join-Path $ObsConfigRoot "basic\profiles"
@@ -163,7 +162,6 @@ if (!(Test-Path -LiteralPath $DefaultSourceFace)) {
 
 $ObsProfile = switch ($OutputRoute) {
     "Mobile" { "DeepLiveCam-Mobile" }
-    "AVD4x3" { "DeepLiveCam-AVD-4x3" }
     default { "DeepLiveCam" }
 }
 $UseDroidCam = $true
@@ -172,10 +170,6 @@ $ObsWidth = 1280
 $ObsHeight = 720
 if ($OutputRoute -eq "Mobile") {
     & powershell -NoProfile -ExecutionPolicy Bypass -File $ResetObsMobile
-} elseif ($OutputRoute -eq "AVD4x3") {
-    $ObsWidth = 640
-    $ObsHeight = 480
-    & powershell -NoProfile -ExecutionPolicy Bypass -File $ResetObsAvd4x3
 } else {
     & powershell -NoProfile -ExecutionPolicy Bypass -File $ResetObs
 }

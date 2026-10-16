@@ -10,19 +10,16 @@ DeepLiveCam OBS Output 窗口
 -> Windows 设备 DroidCam Video
 -> WhatsApp Desktop 选择 DroidCam Video
 
-根目录只保留 6 个入口，并按日常使用频率排序：
+根目录保留仍可用的入口。编号不重排，避免已有快捷方式失效：
 
 1_START_DESKTOP_STABLE.cmd
 正式桌面横屏模式。DeepLiveCam -> OBS -> DroidCam Video -> WhatsApp Desktop。
-
-2_START_AVD_PHONE_4X3.cmd
-官方 Android AVD 原生 4:3 实验模式。自动按正确顺序启动 DeepLiveCam、独立 640x480 OBS/DroidCam 输出、AVD 和 WhatsApp；链路已通过，但远端仍未达到真实手机全屏，只作为测试基线。
 
 3_STOP_ALL.cmd
 停止 DeepLiveCam、OBS 和本项目相关后台进程。
 
 4_DIAGNOSTICS_MENU.cmd
-低频诊断菜单：AVD 前置条件、桌面 WhatsApp、稳定性快照、30 秒性能报告、最近健康日志。
+低频诊断菜单：桌面 WhatsApp、稳定性快照、30 秒性能报告、最近健康日志。
 
 5_SETUP_NEW_DEVICE.cmd
 新设备一次性安装菜单。当前只保留 OBS Virtual Camera 安装；日常不使用。
@@ -34,24 +31,28 @@ DeepLiveCam OBS Output 窗口
 
 1_START_DESKTOP_STABLE.cmd：1280x720 / 30fps，DroidCam，正式横屏模式。
 6_START_MOBILE_CROP_BACKUP.cmd：备用方案。1280x720 / 30fps 兼容传输，中央 405x720（9:16）画面；可以通话，但会缩小手机端有效视频面积。
-2_START_AVD_PHONE_4X3.cmd：手机模式测试入口。OBS 从 1280x720 输入左右各裁 160 像素，等比缩放为无黑边的 640x480；AVD 再将 DroidCam 映射为 `Facing: Front`、`Orientation: 90` 的手机前摄。
-
-AVD 当前状态（2026-10-12）：
+模拟器手机方案归档结论：
 
 1. BlueStacks 路线已淘汰。它虽然能读取实时换脸画面，但相机 HAL 报告方向为 0 度，对方手机仍收到横屏容器。
 2. Root、Magisk、LSPosed、修改版 WhatsApp 全部取消。
 3. API 37 AVD 已确认报告 `Facing: Front`、`Orientation: 90`，并向 WhatsApp 提供两路 640x480 流。
 4. 旧测试把 16:9 内容缩在黑色画布中，黑边随 640x480 摄像头流一起发送；这不是 AVD 方向失败。
-5. 新入口使用独立 `DeepLiveCam-AVD-4x3` profile/scene，不修改入口 1 的桌面横屏配置，也不清除 WhatsApp 登录数据。
+5. AVD 4:3 测试曾使用独立 `DeepLiveCam-AVD-4x3` profile/scene，没有修改入口 1；相关启动代码现已删除，只保留测试结论。
 6. 2026-10-12 实际通话结果：人物显示比旧方案更好，但仍未铺满对方手机竖屏，视觉未达标。
 7. 现场确认 WhatsApp 实际申请两路 640x480；Front/90 度正确，但旋转后仍是 3:4，不是 9:16，继续调整 OBS 尺寸无法解决根因。
-8. 下一候选为 MEmu，目标是验证其 Camera HAL 能否让 WhatsApp 协商 1280x720（旋转后 720x1280）；失败后不再轮换普通模拟器。
+8. 2026-10-16 MEmu + WeCam WDM 验收失败：WeCam 能读取 OBS 并输出实时画面，但 MEmu 重启并打开 Android 相机后仍为黑屏；WeCam 同时显示“当前没有程序使用本摄像头”，证明 MEmu 没有打开 WeCam WDM 设备。
+9. 旧 e2eSoft VCam 屏幕/窗口捕获路线受 DPI、遮挡和窗口状态影响，不能作为稳定实时链路，已淘汰。
+10. 普通 Windows Android 模拟器路线到此停止，不再继续叠加虚拟摄像头桥接。
+
+尚可验证的唯一低成本软件组合：官方 AVD + WeCam WDM。只检查 AVD 能否把 WeCam 的 1280x720 输出映射为 Front/90，并让 WhatsApp 实际申请 1280x720。任一步失败立即停止。该候选尚未恢复为启动入口。
+
+更彻底但复杂的路线是自定义 AOSP/Cuttlefish Camera HAL，直接声明 Front/90 和 1280x720@30；这属于独立开发项目，不纳入日常启动脚本。
 
 新设备迁移边界：
 
-Git 可以同步脚本和配置逻辑，但不能同步 Android SDK/AVD、模型、Python/OBS 运行环境和 WhatsApp 账号授权。AVD 路线验收通过后再固化新设备一键部署。
+Git 可以同步脚本和配置逻辑，但不能同步模型、Python/OBS 运行环境和 WhatsApp 账号授权。模拟器实验环境不再纳入新设备部署。
 
-入口 1 是电脑横屏正式模式；入口 6 是桌面端竖屏裁切备用模式；入口 2 是独立 AVD 原生 4:3 手机测试模式。
+入口 1 是电脑横屏正式模式；入口 6 是桌面端竖屏裁切备用模式。
 
 不要再使用 OBS Virtual Camera 作为 WhatsApp 摄像头。
 WhatsApp 里选择 DroidCam Video。
@@ -102,7 +103,7 @@ GPEN512 是后处理增强，不是主换脸模型。
 新设备 WhatsApp 选择 DroidCam Video 但没有换脸画面：
 
 先运行：
-4_DIAGNOSTICS_MENU.cmd（选项 2）
+4_DIAGNOSTICS_MENU.cmd（选项 1）
 
 重点看：
 
@@ -171,8 +172,8 @@ logs\stability_snapshot_YYYYMMDD_HHMMSS.txt
 1. 启动 1_START_DESKTOP_STABLE.cmd。
 2. WhatsApp 接通后保持 2-3 分钟。
 3. 不同时改源图、XSeg、GPEN、OBS 滤镜。
-4. 测试结束后先运行 4_DIAGNOSTICS_MENU.cmd（选项 3）。
-5. 如果只想快速看最近几行，再运行 4_DIAGNOSTICS_MENU.cmd（选项 5）。
+4. 测试结束后先运行 4_DIAGNOSTICS_MENU.cmd（选项 2）。
+5. 如果只想快速看最近几行，再运行 4_DIAGNOSTICS_MENU.cmd（选项 4）。
 6. 重点看 live_health 里的：
    process_fps
    camera_fps
@@ -327,7 +328,7 @@ DeepLiveCam 主界面 -> 细节调整 Refinement -> 嘴部遮罩 Mouth Mask
 现在只做日志和判断，不自动挂断 WhatsApp。
 自动断线必须等多轮日志证明误判率低之后再考虑。
 
-4_DIAGNOSTICS_MENU.cmd（选项 3） 会记录：
+4_DIAGNOSTICS_MENU.cmd（选项 2） 会记录：
 
 1. DeepLiveCam 处理 FPS、摄像头 FPS、掉脸率、队列、分段耗时。
 2. OBS 是否捕获 OBS Output，DroidCam 输出是否 active/inactive。
