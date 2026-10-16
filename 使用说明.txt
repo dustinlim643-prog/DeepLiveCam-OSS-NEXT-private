@@ -1,254 +1,75 @@
-DeepLiveCam OSS_NEXT 使用说明
+DeepLiveCam 使用说明
 
-一、当前结论
-
-正式可用模式是电脑横屏：
-DeepLiveCam OBS Output -> OBS -> DroidCam Video -> WhatsApp Desktop
-
-手机全屏竖屏的 Camera HAL 与 WhatsApp 语义验证已经通过：对方手机可全屏显示测试片。
-实时 DeepLiveCam 帧接入尚未完成，因此仍不是日常可用入口。入口 6 只是竖屏裁切备用模式。
-
-
-二、根目录入口
+一、根目录日常入口
 
 1_START_DESKTOP_STABLE.cmd
-正式日常入口，1280x720 / 30fps，WhatsApp 选择 DroidCam Video。
+电脑横屏稳定版。保留原功能，不属于手机链路。
 
-2_START_AVD_PHONE_4X3.cmd
-已跑通的模拟器实验基线：DeepLiveCam -> OBS 640x480 -> DroidCam Video -> 官方 AVD Front/90 -> WhatsApp Android。远端仍不能完全铺满手机竖屏。
+2_START_MOBILE_PHONE_FULLSCREEN.cmd
+手机竖屏正式入口。已于 2026-10-16 实测：WhatsApp Android 本机预览和对方手机均为竖屏全屏，方向、镜像和实时换脸正常。
 
-3_STOP_ALL.cmd
-停止 DeepLiveCam、OBS 和项目后台进程。
+根目录只保留以上两个日常入口。历史测试入口统一放在 archive_tests，仅供排障追溯。
 
-4_DIAGNOSTICS_MENU.cmd
-1：WhatsApp 链路诊断
-2：稳定性快照
-3：30 秒性能报告
-4：最近健康日志
 
-5_SETUP_NEW_DEVICE.cmd
-新设备一次性安装/检查入口，日常不运行。
+二、手机竖屏最终链路
 
-6_START_MOBILE_CROP_BACKUP.cmd
-备用入口。保持兼容的 1280x720 流，在中间放置 405x720 竖屏内容；会缩小有效画面并留下黑区。
+DeepLiveCam 的 OBS Output 窗口
+-> 项目内置 FFmpeg 抓取窗口
+-> 中央 9:16 裁切、方向校正、1280x720 I420 / 15 fps
+-> Frida 注入固定 API 37 AVD 的 Emulated Camera HAL
+-> Front / 270 度 / 仅 1280x720
+-> 官方 WhatsApp Android
 
-编号不重排，避免已有快捷方式失效。
+注意：本链路不启动 OBS 软件。“OBS Output”只是 DeepLiveCam 的 OpenCV 输出窗口名称。
 
+已经省略且不得重新加入日常链路：
+OBS Virtual Camera、DroidCam、WeCam、VCam、BlueStacks、MEmu。
+这些组件会造成 640x480 回退、方向语义错误、黑边、黑屏或不稳定，并不能提高当前链路质量。
 
-三、正式模式启动
 
-1. 运行 1_START_DESKTOP_STABLE.cmd。
-2. 等待 DeepLiveCam、OBS 和 OBS Output 窗口出现。
-3. 在 DeepLiveCam 确认源图、摄像头，然后启动 Live。
-4. 确认 OBS 预览有实时换脸画面。
-5. WhatsApp Desktop 选择 DroidCam Video。
+三、日常启动
 
-重要：不要最小化 OBS Output。它是 OBS 的窗口捕获源，最小化会导致 OBS、虚拟摄像头和通话画面变黑。
+1. 插入摄像头。
+2. 运行 2_START_MOBILE_PHONE_FULLSCREEN.cmd。
+3. 脚本会自动启动并校验 AVD、Camera HAL、Frida、DeepLiveCam、实时桥接和 WhatsApp。
+4. 看到 RESULT: READY 后，在 WhatsApp 内拨打视频。
 
-无画面时按此顺序处理：
-1. 运行 3_STOP_ALL.cmd。
-2. 重新运行 1_START_DESKTOP_STABLE.cmd。
-3. 等 OBS Output 和 OBS 预览都有画面后，再打开 WhatsApp。
-4. 仍异常时运行 4_DIAGNOSTICS_MENU.cmd，选择 1。
+脚本会先拒绝错误环境，不会静默降级到 4:3：
+- AVD 名称必须是 DeepLiveCam_HAL_Test_API37。
+- Android 指纹必须与已验证的 API 37 镜像完全一致。
+- Camera HAL 文件 SHA-256 必须完全一致。
+- 前置摄像头必须报告 Front / 270 度。
+- Camera HAL 只能向 WhatsApp 提供 1280x720 流。
+- Frida 固定为 17.23.3。
 
+启动报告保存到 logs\mobile_phone_start_时间.txt。
+实时桥接日志保存到 logs\mobile_hal_bridge_live.log 和 .err.log。
 
-四、稳定基准参数
 
-摄像头输入：1280x720 / 30fps，MJPG
-OBS profile / scene：DeepLiveCam
-OBS 捕获：OBS Output:HighGUI class:python.exe，WGC
-OBS 画布 / 输出：1280x720 / 30fps
-OBS 有效区域：970x546，X=155，Y=86，Lanczos
-OBS 锐化：0.18
-OBS contrast：0.06
-OBS saturation：0.04
-OBS DroidCam AutoStart：true
-WhatsApp 摄像头：DroidCam Video
+四、新电脑一次性部署
 
-主模型：HyperSwap 256
-质量档位：low_latency
-Face Enhancer：None
-XSeg：关闭
-GPEN：关闭
-Poisson Blend：关闭
-颜色迁移强度：0.25
-DeepLiveCam 锐化：0.18
-face_fit_scale：1.06
-face_mask_scale：0.45
-face_mask_blur：23
-live_face_smooth：0.25
-similar_face_distance：1.5
-Mouth Mask：0
+1. 安装 Android Studio / Android SDK，并包含：
+   system-images;android-37.0;google_apis;x86_64，必须是 revision 6。
+2. 在 PowerShell 运行：
+   powershell -NoProfile -ExecutionPolicy Bypass -File tools\mobile_phone\setup_mobile_phone.ps1
+3. 等脚本完成固定 AVD、Camera HAL 配置、Frida 运行时和测试视频部署。
+4. 将换脸源图放入 source_faces。默认优先 current_test_source.jpg，也可设置 DEEPLIVECAM_SOURCE_FACE 指向其它图片。
+5. 在该 AVD 内手动安装官方 WhatsApp，并由用户完成一次登录。
+6. 如当地网络需要 VPN，由用户在 AVD 内完成一次 VPN 登录和 Android 授权。
+7. 以后只运行 2_START_MOBILE_PHONE_FULLSCREEN.cmd。
 
-调坏后先恢复以上数值。不要同时修改多个变量。
+无法由 Git 自动迁移的用户数据只有换脸源图、WhatsApp 登录和 VPN 授权。程序配置、版本检查和摄像头参数由脚本完成；如果直接迁移完整项目目录，source_faces 中的图片会随目录保留。
 
+不要升级或替换 API 37 系统镜像、Camera HAL 或 Frida 后继续强行运行。硬编码帧结构只对上述指纹和 HAL 哈希有效；版本漂移时启动脚本会主动停止。
 
-五、嘴部微调
 
-位置：DeepLiveCam 主界面 -> Refinement / 细节调整 -> Mouth Mask。
+五、画面取舍
 
-稳定值：0
-只按顺序测试：10 -> 15 -> 20，暂时不要超过 20。
+当前输出采用横向源画面的中央 9:16 区域，以换取对方手机真正竖屏全屏。它不会拉伸人物，但会裁掉左右画面，因此摄像头距离和构图仍需按竖屏取景调整。
 
-每档测试：
-正常说话 20 秒；露牙 10 秒；撅嘴 5 秒；轻微左右转头说话 10 秒。
+未来若优化性能，唯一合理方向是让 DeepLiveCam 直接输出 I420 帧，省掉窗口抓取和 FFmpeg。该优化必须先做独立对照测试；在达到当前画质、方向、稳定性和远端全屏效果前，不得替换现有正式链路。
 
-判断：
-数值增大通常会保留更多真实嘴部和牙齿动态，但身份相似度可能下降。
-出现嘴角断层、嘴周发糊或嘴巴不像源图时，立即回退上一档。
 
+六、历史测试
 
-六、源图标准
-
-优先使用：正脸、头部水平、镜头与眼睛同高、嘴唇自然闭合、无遮挡、光线均匀、脸颊和下巴完整、真实皮肤纹理。
-
-避免使用：大眼滤镜、尖下巴、过度瘦脸、丰唇高光、露齿、撅嘴、重度磨皮、近距离广角自拍、头发遮住脸部边缘。
-
-生成规格：1:1，1024x1024 或更高；身份相似优先；自然椭圆脸；不放大眼睛、不缩鼻、不丰唇。
-
-给 AI 的简短提示词：
-请基于我提供的已授权照片生成真实照片级换脸源图。保持人物身份；严格正脸；头部水平；镜头与眼睛同高；自然眼睛和瞳孔；嘴唇轻闭、不露齿、不撅嘴；保留自然脸宽和下巴长度；不要瘦脸、大眼、丰唇或重度磨皮；完整显示额头、双侧脸颊和下巴；柔和正面光；简单背景；1:1，1024x1024。
-
-
-七、手机全屏目标与硬性条件
-
-最终目标不是“视频内容看起来竖着”，而是对方手机中的布局、占屏比例和视野接近真实手机对手机通话。
-
-合格摄像头语义：底层视频流为 1280x720 或 1920x1080 横向传感器帧；Camera2 报告 LENS_FACING_FRONT；SENSOR_ORIENTATION 为 90 或 270；WhatsApp 旋转后在对方手机形成 720x1280 或 1080x1920 的 9:16 显示。
-
-以下情况不能冒充成功：只把 OBS/模拟器窗口改成竖屏；在 4:3 流中加入竖屏内容；本地预览铺满但对方仍有大黑边；拉伸人物；大幅裁切造成脸部放大；只播放测试视频而不能接入实时换脸。
-
-
-八、手机方案漏斗筛选
-
-所有新方案严格逐关验收。前一关未通过，不安装下一层软件、不登录 WhatsApp、不拨号。
-
-第 1 关：源码和架构预检
-1. 能控制 Camera HAL / Camera2 的运行态元数据和可用输出流，不是只改 OBS、窗口或虚拟摄像头名称。
-2. 能向 Android 持续输入 DeepLiveCam 的实时帧；只有固定视频文件输入不算最终可行。
-3. 使用官方 WhatsApp；不依赖修改版 WhatsApp、应用 Hook 或账号高风险方案。
-4. 不能同时证明“可控 HAL”和“实时帧入口”，立即淘汰。
-
-第 2 关：HAL 预检，不启动 WhatsApp
-1. dumpsys/logcat 运行态必须报告 Front 和 90/270，不能只看配置文件。
-2. Camera2 流列表必须包含 1280x720 或 1920x1080，并实际建立 16:9 会话。
-3. activeArray/pixelArray 和运行时设备不能退回 1280x960 或只提供 640x480。
-4. 一旦 host webcam 模式覆盖自定义元数据或重新暴露 4:3，立即淘汰。
-
-第 3 关：WhatsApp 实际流请求
-1. 日志中的实际客户端必须是 com.whatsapp。
-2. 通话时实际请求必须为 1280x720 或 1920x1080；“设备声称支持 720p”不算通过。
-3. 只要 WhatsApp 仍请求 640x480，立即淘汰，不再调整 OBS、裁切或桥接软件。
-
-第 4 关：对方手机视觉验收
-1. 用同一台接收手机，对比真实手机通话与候选路线截图。
-2. 视频区域应接近真实手机全屏竖屏，无 4:3 导致的大面积上下黑区。
-3. 人物比例正常；不能拉伸；不能靠极端中央裁切铺满；视野接近真实前置摄像头。
-4. 本地正常、对方不正常，仍判失败。最终视觉结论由用户确认。
-
-第 5 关：实时换脸接入
-1. 将测试源替换为 DeepLiveCam 实时输出后，实际 Camera2 会话仍保持 16:9。
-2. 不出现黑帧、绿帧、旧帧、摄像头占用或每次手工重新映射。
-3. 固定视频通过而实时输入失败，只能说明手机语义可行，不能进入日常使用。
-
-第 6 关：性能和可复现性
-1. 处理帧率不低于 25 FPS，目标 30 FPS；新增端到端延迟不高于 250 ms。
-2. 新增 GPU 占用不高于 15 个百分点；模拟器新增内存不高于 2.5 GB。
-3. 连续通话 10 分钟无黑屏、冻结、断流；连续 3 次启动和 3 次拨号成功。
-4. 启动时间不高于 90 秒；最终必须一键启动、按设备名称动态映射，日常不重复登录或选摄像头。
-
-
-九、已测试路线与停止点
-
-BlueStacks：能读取换脸画面，但远端仍是横屏容器。失败于第 2/4 关，不再测试窗口旋转或 OBS 竖屏。
-
-MEmu + WeCam：MEmu 未稳定打开 WeCam WDM，Android 端黑屏。失败于第 2/5 关，不再增加同类 Windows 摄像头桥。
-
-官方 AVD + DroidCam：能报告 Front/90 并传输实时画面，但 WhatsApp 实际请求 640x480，远端不能铺满竖屏。失败于第 3/4 关。
-
-该路线保留为入口 2，只用于复现已跑通的 4:3 模拟器基线。入口会按设备名称查找 DroidCam 对应的 webcamN，并处理 Quick Boot 恢复死亡 Camera2 客户端的问题。
-
-官方 AVD + WeCam：Front/90 和实时换脸均通过，但 WhatsApp 仍请求两路 640x480，远端有明显上下黑区。失败于第 3/4 关。
-
-OBS 720x1280、入口 6、改变 WeCam/VCam/DroidCam 输出尺寸：只能改变帧内构图，不能改变 Camera2 协商和 WhatsApp 远端布局，不属于新路线。
-
-Root、Magisk、LSPosed、修改版 WhatsApp：因稳定性、维护和账号风险取消。
-
-共同黑屏原因：Android 相机应用占用摄像头；AVD 在输入源未就绪前启动；OBS Output 被最小化或不存在；Quick Boot 恢复旧 Camera2 客户端；Windows webcamN 编号变化。先排除这些问题，不要因此改画布尺寸。
-
-
-十、GitHub 源码审计结论
-
-本项目私有分支和 hacksider/Deep-Live-Cam 上游只负责采集、换脸、预览和 Windows 虚拟摄像头帧输出。源码中没有 Android Camera HAL、Camera2 元数据或 WhatsApp 远端布局实现，因此它本身不能把 Windows 摄像头变成真实手机前置摄像头。
-
-上游公开讨论中的 portrait/vertical 是预览窗口方向需求，维护者说明尚非优先项；公开虚拟摄像头实现按源分辨率发送帧，也不控制 Android 的 SENSOR_ORIENTATION 或 WhatsApp 的流选择。
-
-CRSD-Lau/deep-live-cam 增加的是 Windows OBS Virtual Camera 1280x720 输出，不包含 Android HAL，不能解决目标。
-
-DUptain1993/Deep-Live-Cam-Android 是独立 Android 换脸应用，主要处理自身 CameraX 预览；没有把处理结果注册为 WhatsApp 可用的系统前置摄像头，且模型/部分功能仍为占位，不采用。
-
-Arsylk/Deep-Live-Cam 确实包含 Camera2 替换、Front 元数据伪装和实时回传代码，但其已记录部署依赖实体小米手机、Magisk、LSPosed/Xposed、内核 v4l2loopback 和 Linux 工作站；仓库没有 WhatsApp 远端全屏验收记录。它证明“自定义 HAL/系统级替换”方向合理，但不满足本项目的无实体手机、无 Root、低维护硬条件。
-
-未找到任何由 Deep-Live-Cam 上游或公开 fork 已完成并可直接复用的“Windows 实时换脸 -> 无 Root 模拟器前置摄像头 -> WhatsApp 对方手机 9:16 全屏”实现。
-
-审计来源：
-https://github.com/hacksider/Deep-Live-Cam
-https://github.com/hacksider/Deep-Live-Cam/discussions/1074
-https://github.com/hacksider/Deep-Live-Cam/issues/1662
-https://github.com/CRSD-Lau/deep-live-cam/blob/windows-obs-virtualcam-runtime/docs/OBS_VIRTUAL_CAMERA.md
-https://github.com/DUptain1993/Deep-Live-Cam-Android
-https://github.com/Arsylk/Deep-Live-Cam
-
-
-十一、自定义 AVD Camera HAL 候选路线
-
-已验证链路：1280x720 测试视频 -> Google APIs API 37 userdebug AVD Emulated Camera HAL -> Front/270 + 仅 1280x720 -> 官方 WhatsApp Android。
-
-当前 Google Play API 37 AVD 是 user/release-keys，vendor 为只读 EROFS，不能直接修改 HAL，不能拿它继续试配置文件。
-
-AOSP Emulated Camera HWL 可用 JSON 定义 Front、orientation 和 stream configurations，也支持 video 文件源。实测必须把前摄能力表中的 640x480、4:3 和更高 4:3 档位移除，只保留 1280x720；仅更换视频源分辨率不够。API 37 当前镜像还需要以 `-selinux permissive` 启动，否则 `hal_camera_default` 被拒绝访问 `media.extractor`，表现为前摄打开失败或黑屏。
-
-2026-10-16 实测结果：`dumpsys media.camera` 显示活动客户端为 `com.whatsapp`、Camera ID 1、两路输出均为 1280x720；HAL 日志显示视频解码源也是 1280x720；用户确认对方手机上的彩色测试画面铺满竖屏。第 2、3、4 关通过，证明全屏手机语义可行。
-
-当前唯一未完成项是第 5 关：官方 video 源只能读取固定 MP4，不能直接接收 DeepLiveCam 实时帧。下一步只评估/实现 HAL 的共享内存、socket 或等效实时帧入口；不得再回退到 OBS 画布、DroidCam、WeCam、BlueStacks 或 MEmu 重测尺寸。
-
-技术依据：
-https://developer.android.com/media/camera/camera2/camera-preview
-https://developer.android.com/reference/android/hardware/camera2/CameraCharacteristics
-https://android.googlesource.com/platform/hardware/google/camera/+/refs/heads/android17-release/devices/EmulatedCamera/hwl/
-https://github.com/jsuppe/aosp-virtual-camera
-https://source.android.com/docs/core/camera/stream-config
-
-关键限制：Android Emulator 的 Windows webcam 后端内置 640x480 等必需尺寸，并可通过 Media Foundation缩放主机摄像头；仅让 Windows 虚拟摄像头声明 1280x720，不能阻止 AVD/WhatsApp 最终使用 640x480。
-
-
-十二、诊断与性能
-
-日志目录：logs
-
-通话异常：4_DIAGNOSTICS_MENU.cmd -> 1
-完整快照：4_DIAGNOSTICS_MENU.cmd -> 2
-性能测试：4_DIAGNOSTICS_MENU.cmd -> 3
-最近健康状态：4_DIAGNOSTICS_MENU.cmd -> 4
-
-关键指标：
-process_fps 低或 queue_in 长期满：本地处理跟不上。
-camera_fps 低：摄像头输入或驱动问题。
-miss_rate 高：侧脸、遮挡、距离或掉脸问题。
-avg_ms_detect 高：检测/追踪瓶颈。
-avg_ms_swap 高：HyperSwap 瓶颈。
-avg_ms_enhance 高：增强器负担过重。
-
-
-十三、新设备迁移
-
-Git 只同步代码、脚本和可提交配置，不同步模型、Python/OBS 完整运行环境、驱动和 WhatsApp 登录状态。
-
-新设备先运行 5_SETUP_NEW_DEVICE.cmd，再确认以下文件存在：
-python\python.exe
-ffmpeg\bin\ffmpeg.exe
-obs-studio\bin\64bit\obs64.exe
-models\hyperswap_1a_256.onnx
-source_faces\current_test_source.jpg
-
-本文件是项目唯一的自定义说明。历史推演和失败过程不再单独保留。
+历史脚本和失败方案结论位于 archive_tests。它们不属于日常使用流程，不应从该目录启动，除非专门进行回归排障。

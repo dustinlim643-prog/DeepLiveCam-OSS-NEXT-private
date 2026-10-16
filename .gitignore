@@ -33,5 +33,6 @@ switch_states.json
 /source_faces/
 /outputs/
 /third_party/
+/tools/mobile_phone/runtime/
 install.bat
 /.claude

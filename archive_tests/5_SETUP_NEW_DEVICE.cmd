@@ -12,7 +12,7 @@ echo.
 choice /C 10 /N /M "Select: "
 set "selection=%errorlevel%"
 
-if "%selection%"=="1" powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\install_obs_virtual_camera.ps1"
+if "%selection%"=="1" powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0..\tools\install_obs_virtual_camera.ps1"
 if "%selection%"=="2" exit /b 0
 
 echo.
