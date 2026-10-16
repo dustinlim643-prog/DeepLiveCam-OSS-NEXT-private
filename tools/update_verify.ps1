@@ -91,6 +91,7 @@ if ($StopScriptItem) {
 $RootLauncherNames = @($LauncherFiles | ForEach-Object { $_.Name } | Sort-Object)
 $ExpectedLauncherNames = @(
     "1_START_DESKTOP_STABLE.cmd",
+    "2_START_AVD_PHONE_4X3.cmd",
     "3_STOP_ALL.cmd",
     "4_DIAGNOSTICS_MENU.cmd",
     "5_SETUP_NEW_DEVICE.cmd",

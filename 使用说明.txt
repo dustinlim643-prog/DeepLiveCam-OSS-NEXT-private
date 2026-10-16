@@ -14,6 +14,9 @@ DeepLiveCam OBS Output -> OBS -> DroidCam Video -> WhatsApp Desktop
 1_START_DESKTOP_STABLE.cmd
 正式日常入口，1280x720 / 30fps，WhatsApp 选择 DroidCam Video。
 
+2_START_AVD_PHONE_4X3.cmd
+已跑通的模拟器实验基线：DeepLiveCam -> OBS 640x480 -> DroidCam Video -> 官方 AVD Front/90 -> WhatsApp Android。远端仍不能完全铺满手机竖屏。
+
 3_STOP_ALL.cmd
 停止 DeepLiveCam、OBS 和项目后台进程。
 
@@ -116,6 +119,8 @@ BlueStacks：能读取换脸画面，但 Camera HAL 方向语义不符合目标�
 MEmu + WeCam：MEmu 没有打开 WeCam WDM 摄像头，Android 端黑屏。
 
 官方 AVD + DroidCam：能报告 Front/90，但 WhatsApp 实际请求 640x480，远端不能铺满手机竖屏。
+
+该路线保留为入口 2，用于复现已经跑通的模拟器链路。入口会动态查找 DroidCam 对应的 webcamN，并优先使用当前 API 37 AVD 的 Quick Boot；只有快照无效时才需要冷启动。
 
 官方 AVD + WeCam：能报告 Front/90，也能传输实时换脸画面；WhatsApp 仍固定请求两路 640x480，实际通话有明显上下黑区，最终失败。
 
