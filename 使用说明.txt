@@ -5,8 +5,8 @@ DeepLiveCam OSS_NEXT 使用说明
 正式可用模式是电脑横屏：
 DeepLiveCam OBS Output -> OBS -> DroidCam Video -> WhatsApp Desktop
 
-手机全屏竖屏目标尚未实现。
-入口 6 只是竖屏裁切备用模式，不是真实手机对手机的全屏效果。
+手机全屏竖屏的 Camera HAL 与 WhatsApp 语义验证已经通过：对方手机可全屏显示测试片。
+实时 DeepLiveCam 帧接入尚未完成，因此仍不是日常可用入口。入口 6 只是竖屏裁切备用模式。
 
 
 二、根目录入口
@@ -202,13 +202,15 @@ https://github.com/Arsylk/Deep-Live-Cam
 
 十一、自定义 AVD Camera HAL 候选路线
 
-候选链路：测试视频 -> 可修改的 AOSP/Google APIs AVD Camera HAL -> Front/270 + 1280x720 -> 官方 WhatsApp。第 3/4 关通过后，才开发 OBS/DeepLiveCam 实时帧入口。
+已验证链路：1280x720 测试视频 -> Google APIs API 37 userdebug AVD Emulated Camera HAL -> Front/270 + 仅 1280x720 -> 官方 WhatsApp Android。
 
 当前 Google Play API 37 AVD 是 user/release-keys，vendor 为只读 EROFS，不能直接修改 HAL，不能拿它继续试配置文件。
 
-AOSP Emulated Camera HWL 可用 JSON 定义 Front、orientation 和 stream configurations，也支持 video 文件源，适合先验证 WhatsApp 的手机语义；但官方文档未提供 OBS/Windows 摄像头实时源。公开 jsuppe/aosp-virtual-camera 可注册自定义 HAL，但目前验证的是色条生成，renderer app 输入仍标为后续工作。
+AOSP Emulated Camera HWL 可用 JSON 定义 Front、orientation 和 stream configurations，也支持 video 文件源。实测必须把前摄能力表中的 640x480、4:3 和更高 4:3 档位移除，只保留 1280x720；仅更换视频源分辨率不够。API 37 当前镜像还需要以 `-selinux permissive` 启动，否则 `hal_camera_default` 被拒绝访问 `media.extractor`，表现为前摄打开失败或黑屏。
 
-因此该路线当前只通过“可做第一阶段测试视频验证”，尚未通过“最终实时输入已有现成实现”的第 1 关。测试视频若仍触发 WhatsApp 640x480或远端不全屏，立即终止；若成功，再评估给 HAL 增加共享内存、socket 或编码流输入的开发量，不提前重做登录和桥接。
+2026-10-16 实测结果：`dumpsys media.camera` 显示活动客户端为 `com.whatsapp`、Camera ID 1、两路输出均为 1280x720；HAL 日志显示视频解码源也是 1280x720；用户确认对方手机上的彩色测试画面铺满竖屏。第 2、3、4 关通过，证明全屏手机语义可行。
+
+当前唯一未完成项是第 5 关：官方 video 源只能读取固定 MP4，不能直接接收 DeepLiveCam 实时帧。下一步只评估/实现 HAL 的共享内存、socket 或等效实时帧入口；不得再回退到 OBS 画布、DroidCam、WeCam、BlueStacks 或 MEmu 重测尺寸。
 
 技术依据：
 https://developer.android.com/media/camera/camera2/camera-preview
