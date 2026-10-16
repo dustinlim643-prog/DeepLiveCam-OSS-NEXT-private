@@ -43,11 +43,9 @@ Check-File "OBS Live Preview watcher" (Join-Path $Root "tools\wait_for_live_prev
 Check-File "start helper" (Join-Path $Root "tools\start_deeplivecam_obs.ps1")
 Check-File "stop helper" (Join-Path $Root "tools\stop_deeplivecam_obs.ps1")
 Check-File "OBS DeepLiveCam scene" (Join-Path $Root "obs-studio\config\obs-studio\basic\scenes\DeepLiveCam.json")
-Check-File "migration plan" (Join-Path $Root "FEATURE_MIGRATION_PLAN.zh-CN.md")
 $UserGuideItem = Get-ChildItem -LiteralPath $Root -Filter "*.txt" -File | Where-Object {
     try {
-        $text = Get-Content -LiteralPath $_.FullName -Raw -Encoding UTF8
-        $text -match "DeepLiveCam \+ OBS" -and $text -match "OBS Virtual Camera"
+        (Get-Content -LiteralPath $_.FullName -Raw -Encoding UTF8).StartsWith("DeepLiveCam OSS_NEXT")
     } catch {
         $false
     }
@@ -55,7 +53,7 @@ $UserGuideItem = Get-ChildItem -LiteralPath $Root -Filter "*.txt" -File | Where-
 if ($UserGuideItem) {
     Add-Line "OK user guide: $($UserGuideItem.FullName)"
 } else {
-    Add-Line "ERROR user guide not found by content"
+    Add-Line "ERROR user guide not found"
     $Failed = $true
 }
 
@@ -91,19 +89,19 @@ if ($StopScriptItem) {
 }
 
 $RootLauncherNames = @($LauncherFiles | ForEach-Object { $_.Name } | Sort-Object)
-$SelfCheckScriptItem = $LauncherFiles | Where-Object {
-    try {
-        $text = Get-Content -LiteralPath $_.FullName -Raw
-        $text -match "tools\\update_verify\.ps1"
-    } catch {
-        $false
-    }
-} | Select-Object -First 1
-if (($RootLauncherNames.Count -in @(3,4)) -and $StartScriptItem -and $StopScriptItem -and $SelfCheckScriptItem) {
+$ExpectedLauncherNames = @(
+    "1_START_DESKTOP_STABLE.cmd",
+    "3_STOP_ALL.cmd",
+    "4_DIAGNOSTICS_MENU.cmd",
+    "5_SETUP_NEW_DEVICE.cmd",
+    "6_START_MOBILE_CROP_BACKUP.cmd"
+)
+$UnexpectedLaunchers = @(Compare-Object $RootLauncherNames $ExpectedLauncherNames)
+if ($UnexpectedLaunchers.Count -eq 0 -and $StartScriptItem -and $StopScriptItem) {
     Add-Line "OK root launcher list is clean: $($RootLauncherNames -join ', ')"
 } else {
     Add-Line "ERROR root launcher list is not clean or incomplete: $($RootLauncherNames -join ', ')"
-    Add-Line "Expected launchers by role: quality start, optional low-latency start, stop, self-check"
+    Add-Line "Expected launchers: $($ExpectedLauncherNames -join ', ')"
     $Failed = $true
 }
 

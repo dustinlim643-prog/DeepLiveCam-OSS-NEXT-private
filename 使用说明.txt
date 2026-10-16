@@ -1,253 +1,73 @@
 DeepLiveCam OSS_NEXT 使用说明
 
-项目目标：
-实时单图换脸，输出到 OBS，再通过 DroidCam Video 给 WhatsApp Desktop 使用。
+一、当前结论
 
-当前正式链路：
-DeepLiveCam OBS Output 窗口
--> OBS 捕获该窗口
--> DroidCam Virtual Output
--> Windows 设备 DroidCam Video
--> WhatsApp Desktop 选择 DroidCam Video
+正式可用模式是电脑横屏：
+DeepLiveCam OBS Output -> OBS -> DroidCam Video -> WhatsApp Desktop
 
-根目录保留仍可用的入口。编号不重排，避免已有快捷方式失效：
+手机全屏竖屏目标尚未实现。
+入口 6 只是竖屏裁切备用模式，不是真实手机对手机的全屏效果。
+
+
+二、根目录入口
 
 1_START_DESKTOP_STABLE.cmd
-正式桌面横屏模式。DeepLiveCam -> OBS -> DroidCam Video -> WhatsApp Desktop。
+正式日常入口，1280x720 / 30fps，WhatsApp 选择 DroidCam Video。
 
 3_STOP_ALL.cmd
-停止 DeepLiveCam、OBS 和本项目相关后台进程。
+停止 DeepLiveCam、OBS 和项目后台进程。
 
 4_DIAGNOSTICS_MENU.cmd
-低频诊断菜单：桌面 WhatsApp、稳定性快照、30 秒性能报告、最近健康日志。
+1：WhatsApp 链路诊断
+2：稳定性快照
+3：30 秒性能报告
+4：最近健康日志
 
 5_SETUP_NEW_DEVICE.cmd
-新设备一次性安装菜单。当前只保留 OBS Virtual Camera 安装；日常不使用。
+新设备一次性安装/检查入口，日常不运行。
 
 6_START_MOBILE_CROP_BACKUP.cmd
-兼容性备用路线：桌面通话保持 1280x720，中央放置 405x720 竖屏内容。效果有黑边缩小问题，仅在正式路线异常时使用。
+备用入口。保持兼容的 1280x720 流，在中间放置 405x720 竖屏内容；会缩小有效画面并留下黑区。
 
-电脑横屏与手机方案：
+编号不重排，避免已有快捷方式失效。
 
-1_START_DESKTOP_STABLE.cmd：1280x720 / 30fps，DroidCam，正式横屏模式。
-6_START_MOBILE_CROP_BACKUP.cmd：备用方案。1280x720 / 30fps 兼容传输，中央 405x720（9:16）画面；可以通话，但会缩小手机端有效视频面积。
-模拟器手机方案归档结论：
 
-1. BlueStacks 路线已淘汰。它虽然能读取实时换脸画面，但相机 HAL 报告方向为 0 度，对方手机仍收到横屏容器。
-2. Root、Magisk、LSPosed、修改版 WhatsApp 全部取消。
-3. API 37 AVD 已确认报告 `Facing: Front`、`Orientation: 90`，并向 WhatsApp 提供两路 640x480 流。
-4. 旧测试把 16:9 内容缩在黑色画布中，黑边随 640x480 摄像头流一起发送；这不是 AVD 方向失败。
-5. AVD 4:3 测试曾使用独立 `DeepLiveCam-AVD-4x3` profile/scene，没有修改入口 1；相关启动代码现已删除，只保留测试结论。
-6. 2026-10-12 实际通话结果：人物显示比旧方案更好，但仍未铺满对方手机竖屏，视觉未达标。
-7. 现场确认 WhatsApp 实际申请两路 640x480；Front/90 度正确，但旋转后仍是 3:4，不是 9:16，继续调整 OBS 尺寸无法解决根因。
-8. 2026-10-16 MEmu + WeCam WDM 验收失败：WeCam 能读取 OBS 并输出实时画面，但 MEmu 重启并打开 Android 相机后仍为黑屏；WeCam 同时显示“当前没有程序使用本摄像头”，证明 MEmu 没有打开 WeCam WDM 设备。
-9. 旧 e2eSoft VCam 屏幕/窗口捕获路线受 DPI、遮挡和窗口状态影响，不能作为稳定实时链路，已淘汰。
-10. 2026-10-16 官方 AVD + WeCam WDM 已完成最终通话：AVD 能识别 WeCam，Camera HAL 正确报告 Front/90 并公布 1280x720；但 WhatsApp 仍固定申请两路 640x480。
-11. WeCam 改为 640x480 后可以正常传输实时换脸画面，但实际通话仍有明显上下黑区，对方手机不是手机对手机的全屏竖屏效果，最终判定失败。
-12. 普通 Windows Android 模拟器路线到此停止，不再调整 OBS/WeCam 尺寸，也不再叠加虚拟摄像头桥接。
+三、正式模式启动
 
-重复测试禁止条件：只要 WhatsApp 实际申请 `640x480`，后续调整 OBS 画布、WeCam 项目尺寸或模拟器窗口比例都只能改变帧内构图，不能改变远端布局，不再进入通话测试。
+1. 运行 1_START_DESKTOP_STABLE.cmd。
+2. 等待 DeepLiveCam、OBS 和 OBS Output 窗口出现。
+3. 在 DeepLiveCam 确认源图、摄像头，然后启动 Live。
+4. 确认 OBS 预览有实时换脸画面。
+5. WhatsApp Desktop 选择 DroidCam Video。
 
-新方案准入条件：必须先证明它能改变 Camera HAL/Camera2 流配置或 WhatsApp 的设备与布局判定；如果预检仍是 `Front/90 + WhatsApp 640x480`，直接停止，不安装更多桥接、不重新登录、不拨号。
+重要：不要最小化 OBS Output。它是 OBS 的窗口捕获源，最小化会导致 OBS、虚拟摄像头和通话画面变黑。
 
-更彻底但复杂的路线是自定义 AOSP/Cuttlefish Camera HAL，直接声明 Front/90 和 1280x720@30；这属于独立开发项目，不纳入日常启动脚本。
+无画面时按此顺序处理：
+1. 运行 3_STOP_ALL.cmd。
+2. 重新运行 1_START_DESKTOP_STABLE.cmd。
+3. 等 OBS Output 和 OBS 预览都有画面后，再打开 WhatsApp。
+4. 仍异常时运行 4_DIAGNOSTICS_MENU.cmd，选择 1。
 
-新设备迁移边界：
 
-Git 可以同步脚本和配置逻辑，但不能同步模型、Python/OBS 运行环境和 WhatsApp 账号授权。模拟器实验环境不再纳入新设备部署。
-
-入口 1 是电脑横屏正式模式；入口 6 是桌面端竖屏裁切备用模式。
-
-不要再使用 OBS Virtual Camera 作为 WhatsApp 摄像头。
-WhatsApp 里选择 DroidCam Video。
-
-启动步骤：
-
-1. 双击 1_START_DESKTOP_STABLE.cmd。
-2. 等 DeepLiveCam 界面、OBS、OBS Output 窗口出现。
-3. DeepLiveCam 里确认源脸图片和摄像头。
-4. 点击 Live / 直播。
-5. OBS 预览里应能看到 OBS Output 窗口画面。
-6. WhatsApp 设置 -> 视频和语音 -> 摄像头选择 DroidCam Video。
-7. 发起视频通话，通话中的摄像头菜单也选择 DroidCam Video。
-
-当前推荐配置：
+四、稳定基准参数
 
 摄像头输入：1280x720 / 30fps，MJPG
-OBS 画布：1280x720 / 30fps
+OBS profile / scene：DeepLiveCam
+OBS 捕获：OBS Output:HighGUI class:python.exe，WGC
+OBS 画布 / 输出：1280x720 / 30fps
+OBS 有效区域：970x546，X=155，Y=86，Lanczos
+OBS 锐化：0.18
+OBS contrast：0.06
+OBS saturation：0.04
+OBS DroidCam AutoStart：true
 WhatsApp 摄像头：DroidCam Video
-主换脸模型：HyperSwap 256
-Face Enhancer：None
-XSeg：低延迟模式默认关闭
-GPEN512：默认关闭
 
-为什么关闭 GPEN512：
-
-GPEN512 是后处理增强，不是主换脸模型。
-它会明显增加延迟和掉帧。
-当前测试显示关闭后处理 FPS 从约 7fps 提升到约 18-26fps。
-如果后续要增强清晰度，先试 GPEN-256，不直接回到 GPEN-512。
-
-没有画面的排查顺序：
-
-1. Windows 设备里是否有 DroidCam Video：
-   Get-PnpDevice | Where-Object FriendlyName -match 'Droid|OBS|Camera' | Format-Table Status,Class,FriendlyName -AutoSize
-
-2. OBS 是否加载 DroidCam 插件：
-   OBS 日志里应出现 droidcam-virtual-output.dll 和 AutoStart Trigger。
-
-3. OBS 预览是否有 DeepLiveCam 画面：
-   如果 OBS 里黑屏，问题在 OBS 窗口捕获。
-
-4. WhatsApp 是否选择 DroidCam Video：
-   如果选了 DroidCam Video 但没画面，问题通常在 OBS 没有把画面输出给 DroidCam。
-
-5. 如果刚安装 DroidCam 驱动或插件，重启电脑后再测。
-
-新设备 WhatsApp 选择 DroidCam Video 但没有换脸画面：
-
-先运行：
-4_DIAGNOSTICS_MENU.cmd（选项 1）
-
-重点看：
-
-1. OBS profile 是否是 DeepLiveCam。
-2. DroidCam AutoStart 是否是 true。
-3. OBS scene 是否捕获 OBS Output:HighGUI class:python.exe。
-4. OBS 日志是否有 droidcam-virtual-output.dll loaded。
-5. OBS 日志是否有 webcam video active 1280x720 30fps。
-
-如果 WhatsApp 画面显示 Start DroidCam 或黑屏，但 OBS 预览有换脸画面，问题通常在：
-
-1. OBS 没有真正启动 DroidCam Virtual Output。
-2. OBS 使用了错误 profile。
-3. WhatsApp 读到了 DroidCam 的旧占位流。
-4. 启动顺序不对。
-
-正确顺序：
-
-1. 先运行 3_STOP_ALL.cmd。
-2. 再运行 1_START_DESKTOP_STABLE.cmd。
-3. 等 OBS Output 窗口出现并有画面。
-4. 等 OBS 预览有画面。
-5. 再打开 WhatsApp，选择 DroidCam Video。
-
-当前已知问题：
-
-1. 脸部最外轮廓还不够紧致贴合。
-2. 动作过大、侧脸、低头时可能出现边缘穿模。
-3. WhatsApp 最终画质受网络、压缩、DroidCam 输出和 OBS 输入共同影响。
-4. 说话时嘴唇可能偏死板，属于单图实时换脸常见问题。
-5. 边缘问题和嘴唇问题暂时不混调，先保证 WhatsApp 链路稳定。
-
-后续边缘优化顺序：
-
-1. 固定同一张源图、同一光线、同一摄像头位置。
-2. 先微调 face_fit_scale。
-3. 再调 mask scale / blur。
-4. 再测试 XSeg。
-5. 最后才加 OBS 轻微锐化/柔化。
-
-嘴唇死板优化顺序：
-
-该问题排在脸部边缘优化之后。
-优先方向不是盲目增强画质，而是保护目标嘴部动态：
-
-1. 先测试 mouth mask / mouth region protection。
-2. 再测试减少嘴唇区域换脸强度，让真实嘴形和牙齿保留更多。
-3. 再筛选嘴唇颜色更自然、闭嘴或轻微微笑的源图。
-4. 最后才考虑外部 lip-sync / expression-restorer 类方案。
-
-取舍：
-
-保护目标嘴部会让说话更自然，但身份相似度可能略降。
-完整 lip-sync 效果更强，但实时视频通话链路复杂度和延迟会明显增加。
-
-日志位置：
-
-项目内日志：
-logs
-
-完整诊断快照：
-logs\stability_snapshot_YYYYMMDD_HHMMSS.txt
-
-帧率稳定性排查：
-
-1. 启动 1_START_DESKTOP_STABLE.cmd。
-2. WhatsApp 接通后保持 2-3 分钟。
-3. 不同时改源图、XSeg、GPEN、OBS 滤镜。
-4. 测试结束后先运行 4_DIAGNOSTICS_MENU.cmd（选项 2）。
-5. 如果只想快速看最近几行，再运行 4_DIAGNOSTICS_MENU.cmd（选项 4）。
-6. 重点看 live_health 里的：
-   process_fps
-   camera_fps
-   miss_rate
-   queue_in / queue_out
-   avg_ms_total
-   avg_ms_detect
-   avg_ms_swap
-   avg_ms_enhance
-   avg_ms_other
-
-判断方式：
-
-avg_ms_detect 高：瓶颈在人脸检测/追踪。
-avg_ms_swap 高：瓶颈在 HyperSwap 主换脸。
-avg_ms_enhance 高：说明开了 GPEN/GFPGAN 或增强器负担过重。
-queue_in 长期满：处理跟不上摄像头输入。
-miss_rate 高：掉脸/侧脸/遮挡/距离问题，先不等同于网络问题。
-
-断线/掉帧保护阶段：
-
-AI 生成标准源脸图命令：
-
-把 3-8 张授权参考照发给 AI 后，复制下面这段：
-
-我会提供 3-8 张已授权的人脸参考照片。请基于这些参考照片生成一张适合实时单图换脸的真实照片级源脸图。
-必须保持同一人物身份特征；正脸；眼睛看镜头；左右/上下偏转不超过 10 度；面部完整，额头、下巴、左右脸颊轮廓都可见；无眼镜、无手、无头发遮挡关键区域；表情自然，闭嘴或轻微放松；嘴唇颜色自然；光线均匀柔和；皮肤保留真实纹理，不要重度美颜、磨皮、塑料感、CG 感；背景简单；无文字水印；输出 1:1，1024x1024 或更高。
-请输出 3 个版本：A 身份相似优先；B 脸型贴合优先；C 换脸测试优先。不要输出漫画、写真大片、网红滤镜、艺术照。我要的是换脸源图，不是单纯好看的头像。
-
-AI 判断图片是否合格命令：
-
-把候选图片发给 AI 后，复制下面这段：
-
-请判断这张图片是否适合做实时单图换脸源脸图。不要只评价好不好看，要按换脸效果判断。
-请按 0-5 分评分：正脸角度、脸部完整度、清晰度、光线、遮挡、嘴部状态、美颜程度、脸型匹配风险、边缘风险、实时使用风险。
-请用表格输出：评分项 / 分数 / 问题 / 会导致的换脸后果。
-最后只给三选一结论：可直接测试 / 可测试但需记录缺陷 / 不建议作为主测试源图。
-
-当前 OBS 优化：
-
-OBS profile：DeepLiveCam
-OBS scene：DeepLiveCam
-捕获窗口：OBS Output:HighGUI class:python.exe
-捕获方式：WGC
-OBS 画布和输出：1280x720 / 30fps
-DroidCamVirtualOutput AutoStart：true
-WhatsApp 摄像头：DroidCam Video
-有效画面区域：970x546
-位置：X=155, Y=86
-缩放：Lanczos
-状态：当前稳定回退值
-不要使用：大小 506x900、边界 970x545 这类竖向构图。当前稳定链路是 1280x720 横屏流，竖向构图会让 WhatsApp 观感变差。
-锐化滤镜：0.18
-颜色稳定：contrast 0.06，brightness 0，saturation 0.04，hue_shift 0，opacity 100
-
-OBS 可做但未测试：
-
-轻微柔化皮肤、LUT/色彩预设、更小画面区域 900x506、1080p 输出、更强锐化 0.22-0.30、降噪/磨皮插件。
-这些只能做画面均衡，不能替代 DeepLiveCam 的脸型、mask、嘴部优化。
-
-当前 DeepLiveCam 实时参数：
-
-启动：1_START_DESKTOP_STABLE.cmd
-源图：source_faces\current_test_source.jpg
 主模型：HyperSwap 256
+质量档位：low_latency
 Face Enhancer：None
 XSeg：关闭
-GPEN512：关闭
+GPEN：关闭
 Poisson Blend：关闭
-颜色校正：开启
 颜色迁移强度：0.25
 DeepLiveCam 锐化：0.18
 face_fit_scale：1.06
@@ -255,107 +75,90 @@ face_mask_scale：0.45
 face_mask_blur：23
 live_face_smooth：0.25
 similar_face_distance：1.5
-mouth_mask：关闭
-mouth_mask_size：0
-OBS 输出窗口：开启
-DeepLiveCam 虚拟摄像头输出：关闭
+Mouth Mask：0
 
-部位调试对照：
+调坏后先恢复以上数值。不要同时修改多个变量。
 
-脸大小贴合：face_fit_scale，当前 1.06，可测 1.04 / 1.06 / 1.08 / 1.10。过小露边，过大脸浮。
-脸部边缘范围：face_mask_scale，当前 0.45，可测 0.43 / 0.45 / 0.47 / 0.50。过小露底，过大压到头发和脸型。
-边缘柔和：face_mask_blur，当前 23，可测 19 / 23 / 31 / 39。过低硬边，过高发虚。
-动态防抖：live_face_smooth，当前 0.25，可测 0.20 / 0.25 / 0.35。过高会延迟和粘滞。
-嘴部动态：mouth_mask_size，当前 0，可从 10 / 20 / 30 起测。过大会嘴部断层。
-语义遮罩：XSeg 当前关闭，只在新硬件质量测试时开启。
-OBS 锐化：当前 0.18，可测 0.12 / 0.18 / 0.24。过高会放大边缘瑕疵。
 
-调试顺序：
+五、嘴部微调
 
-1. 只换源图，选出最真实的 1-2 张。
-2. 只调 face_fit_scale。
-3. 再调 face_mask_scale。
-4. 再调 face_mask_blur。
-5. 再测 mouth_mask_size。
-6. 新硬件上再测 XSeg / high_quality。
-7. 最后才调 OBS 美化。
+位置：DeepLiveCam 主界面 -> Refinement / 细节调整 -> Mouth Mask。
 
-2026-09-02 当前稳定参考值：
+稳定值：0
+只按顺序测试：10 -> 15 -> 20，暂时不要超过 20。
 
-启动入口：1_START_DESKTOP_STABLE.cmd
-主模型：HyperSwap 256
-Face Enhancer：None
-XSeg：关闭
-GPEN512：关闭
-face_fit_scale：1.06
-face_mask_scale：0.45
-face_mask_blur：23
-live_face_smooth：0.25
-嘴部遮罩 Mouth Mask：0
-OBS 锐化：0.18
-OBS contrast：0.06
-OBS saturation：0.04
-OBS 输出：1280x720 / 30fps
-WhatsApp 摄像头：DroidCam Video
-
-嘴部微调位置：
-
-DeepLiveCam 主界面 -> 细节调整 Refinement -> 嘴部遮罩 Mouth Mask
-
-本轮只测：
-
-0：当前稳定参考
-10：第一候选
-15：第二候选
-20：上限测试，暂时不要超过
-
-每档测试动作：
-
-正常说话 20 秒
-露牙说话 10 秒
-撅嘴 5 秒
-轻微左右转头说话 10 秒
+每档测试：
+正常说话 20 秒；露牙 10 秒；撅嘴 5 秒；轻微左右转头说话 10 秒。
 
 判断：
+数值增大通常会保留更多真实嘴部和牙齿动态，但身份相似度可能下降。
+出现嘴角断层、嘴周发糊或嘴巴不像源图时，立即回退上一档。
 
-嘴部遮罩 Mouth Mask 越大，说话和牙齿越可能自然，但身份相似度可能下降。
-如果出现嘴角断层、嘴巴不像源图、嘴周围一圈糊，立刻回退上一档。
 
-和 ChatGPT 生成 AI 源图时先说：
+六、源图标准
 
-我在做实时单图换脸测试，所有参考素材都已授权。请先判断我上传的参考图是否适合生成换脸源图，不要只评价好不好看。重点看身份特征稳定、脸型一致、正脸无遮挡、光线均匀、嘴唇自然、是否有美颜小脸或广角畸变。请用表格输出：参考图编号 / 可用程度 / 问题 / 会影响换脸的哪里 / 是否建议用于生成。最后告诉我是否可以开始生成，最适合参考哪几张，生成时要避开什么问题。
+优先使用：正脸、头部水平、镜头与眼睛同高、嘴唇自然闭合、无遮挡、光线均匀、脸颊和下巴完整、真实皮肤纹理。
 
-确认可生成后再说：
+避免使用：大眼滤镜、尖下巴、过度瘦脸、丰唇高光、露齿、撅嘴、重度磨皮、近距离广角自拍、头发遮住脸部边缘。
 
-请基于选定参考图生成 3 张真实照片级标准正脸源图，用于实时单图换脸测试。要求保持同一人物身份特征；正脸；头部水平；眼睛看镜头；左右/上下偏转不超过 10 度；镜头与眼睛同高；面部完整；无眼镜、无手、无头发遮挡；闭嘴或轻微放松；不露牙；不撅嘴；嘴唇颜色自然；光线均匀柔和；皮肤保留真实纹理；不要重度磨皮；背景干净；无文字水印；1:1，1024x1024 或更高。三张分别是：A 身份相似优先，B 脸型贴合优先，C 换脸测试优先。
+生成规格：1:1，1024x1024 或更高；身份相似优先；自然椭圆脸；不放大眼睛、不缩鼻、不丰唇。
 
-现在只做日志和判断，不自动挂断 WhatsApp。
-自动断线必须等多轮日志证明误判率低之后再考虑。
+给 AI 的简短提示词：
+请基于我提供的已授权照片生成真实照片级换脸源图。保持人物身份；严格正脸；头部水平；镜头与眼睛同高；自然眼睛和瞳孔；嘴唇轻闭、不露齿、不撅嘴；保留自然脸宽和下巴长度；不要瘦脸、大眼、丰唇或重度磨皮；完整显示额头、双侧脸颊和下巴；柔和正面光；简单背景；1:1，1024x1024。
 
-4_DIAGNOSTICS_MENU.cmd（选项 2） 会记录：
 
-1. DeepLiveCam 处理 FPS、摄像头 FPS、掉脸率、队列、分段耗时。
-2. OBS 是否捕获 OBS Output，DroidCam 输出是否 active/inactive。
-3. Windows 是否识别 DroidCam Video、OBS、4k Camera。
-4. WhatsApp 进程和连接状态。
-5. 网络延迟和丢包快速样本。
+七、手机全屏方案测试结论
 
-问题归因顺序：
+以下路线均已完成关键验证，不再重复：
 
-1. process_fps 低或 queue 高：本地处理跟不上。
-2. camera_fps 低：摄像头输入规格或驱动问题。
-3. miss_rate 高：本地掉脸、遮挡、侧脸或脸部距离问题。
-4. OBS 里 DroidCam inactive/stopping：OBS 到 DroidCam 输出链路问题。
-5. 本地输出清楚但远端糊，且网络延迟/丢包异常：优先看 VPN/网络。
-6. 本地输出清楚、网络正常但远端糊：优先看 WhatsApp 压缩或虚拟摄像头接收规格。
+BlueStacks：能读取换脸画面，但 Camera HAL 方向语义不符合目标，远端仍是横屏容器。
 
-用户复制过来的新电脑日志：
-C:\Users\不愁\Downloads\Telegram Desktop
+MEmu + WeCam：MEmu 没有打开 WeCam WDM 摄像头，Android 端黑屏。
 
-归档说明：
+官方 AVD + DroidCam：能报告 Front/90，但 WhatsApp 实际请求 640x480，远端不能铺满手机竖屏。
 
-旧测试脚本、旧文档和临时同步包已移到：
-_archive\2026-08-old-tests-and-docs
+官方 AVD + WeCam：能报告 Front/90，也能传输实时换脸画面；WhatsApp 仍固定请求两路 640x480，实际通话有明显上下黑区，最终失败。
 
-根目录保持简单，日常不要进 archive 目录操作。
+Root、Magisk、LSPosed、修改版 WhatsApp：因稳定性、维护和账号风险取消。
 
+核心结论：调整 OBS 画布、WeCam 尺寸或模拟器窗口，只能改变视频帧里的构图，不能改变 WhatsApp 的远端布局策略。
+
+新方案准入条件：
+1. 必须先证明它能改变 Camera HAL / Camera2 流配置或 WhatsApp 的设备与布局判定。
+2. 如果预检仍是 Front/90 + WhatsApp 640x480，直接停止。
+3. 只改变裁切、黑边或桥接软件，不算新方案。
+4. 预检通过后才允许安装、登录和进行一次真实通话验收。
+
+纯软件方向只剩自定义 AOSP/Cuttlefish Camera HAL，属于独立开发项目，不纳入日常入口。
+
+
+八、诊断与性能
+
+日志目录：logs
+
+通话异常：4_DIAGNOSTICS_MENU.cmd -> 1
+完整快照：4_DIAGNOSTICS_MENU.cmd -> 2
+性能测试：4_DIAGNOSTICS_MENU.cmd -> 3
+最近健康状态：4_DIAGNOSTICS_MENU.cmd -> 4
+
+关键指标：
+process_fps 低或 queue_in 长期满：本地处理跟不上。
+camera_fps 低：摄像头输入或驱动问题。
+miss_rate 高：侧脸、遮挡、距离或掉脸问题。
+avg_ms_detect 高：检测/追踪瓶颈。
+avg_ms_swap 高：HyperSwap 瓶颈。
+avg_ms_enhance 高：增强器负担过重。
+
+
+九、新设备迁移
+
+Git 只同步代码、脚本和可提交配置，不同步模型、Python/OBS 完整运行环境、驱动和 WhatsApp 登录状态。
+
+新设备先运行 5_SETUP_NEW_DEVICE.cmd，再确认以下文件存在：
+python\python.exe
+ffmpeg\bin\ffmpeg.exe
+obs-studio\bin\64bit\obs64.exe
+models\hyperswap_1a_256.onnx
+source_faces\current_test_source.jpg
+
+本文件是项目唯一的自定义说明。历史推演和失败过程不再单独保留。
