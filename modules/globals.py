@@ -51,6 +51,7 @@ live_xseg_mask: bool = False
 live_obs_output_window: bool = True
 live_virtualcam_output: bool = False
 auto_live: bool = False
+camera_name: str = ""
 
 # System Configuration
 max_memory: int | None = None        # Memory limit in GB? (Needs clarification)

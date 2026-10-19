@@ -740,6 +740,12 @@ class MainWindow(QMainWindow):
             cam_ok = False
         else:
             self.cb_camera.addItems(self._camera_names)
+            requested_camera = getattr(modules.globals, "camera_name", "").strip()
+            if requested_camera:
+                for camera_pos, camera_name in enumerate(self._camera_names):
+                    if camera_name.casefold() == requested_camera.casefold():
+                        self.cb_camera.setCurrentIndex(camera_pos)
+                        break
             cam_ok = True
         self.cb_camera.setToolTip(_("Select which camera to use for live mode"))
         layout.addWidget(self.cb_camera, 1)

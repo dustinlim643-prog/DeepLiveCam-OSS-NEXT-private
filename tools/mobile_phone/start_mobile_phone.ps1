@@ -1,7 +1,8 @@
 param(
     [ValidateSet("quality", "low_latency")]
     [string]$Mode = "low_latency",
-    [string]$AvdName = "DeepLiveCam_HAL_Test_API37"
+    [string]$AvdName = "DeepLiveCam_HAL_Test_API37",
+    [string]$CameraName = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -27,6 +28,8 @@ $FridaPy = Join-Path $Runtime "frida_py"
 $FridaServer = Join-Path $Runtime "frida-server"
 $Report = Join-Path $Logs ("mobile_phone_start_{0}.txt" -f (Get-Date -Format "yyyyMMdd_HHmmss"))
 $reportLines = [Collections.Generic.List[string]]::new()
+$deepLiveProcess = $null
+$bridgeProcess = $null
 
 function Report([string]$Text) {
     $reportLines.Add($Text)
@@ -49,6 +52,8 @@ function Wait-AndroidBoot([string]$Adb, [int]$TimeoutSeconds = 300) {
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     do {
         Start-Sleep -Seconds 3
+        $offline = @(& $Adb devices | Select-String '^emulator-\d+\s+offline')
+        if ($offline.Count -gt 0) { & $Adb reconnect offline 2>$null | Out-Null }
         foreach ($serial in @(& $Adb devices | Select-String '^emulator-\d+\s+device' | ForEach-Object { ($_.Line -split '\s+')[0] })) {
             $name = ((& $Adb -s $serial emu avd name 2>$null) -join "").Replace("OK", "").Trim()
             $booted = ((& $Adb -s $serial shell getprop sys.boot_completed 2>$null) -join "").Trim()
@@ -74,6 +79,17 @@ try {
     Report "DeepLiveCam real phone fullscreen route"
     Report "Expected: DeepLiveCam -> FFmpeg I420 -> Frida -> API37 Front/270 1280x720 -> WhatsApp Android"
 
+    $physicalCameras = @(Get-PnpDevice -Class Camera -PresentOnly -ErrorAction SilentlyContinue |
+        Where-Object { $_.Status -eq 'OK' })
+    if ($physicalCameras.Count -eq 0) {
+        throw "No ready Windows camera was detected. Connect the camera before starting the mobile route."
+    }
+    if (!$CameraName) { $CameraName = [string]$physicalCameras[0].FriendlyName }
+    if ($CameraName -notin @($physicalCameras | Select-Object -ExpandProperty FriendlyName)) {
+        throw "Requested physical camera '$CameraName' is not ready. Available: $($physicalCameras.FriendlyName -join ', ')"
+    }
+    Report "Windows physical camera selected by name: $CameraName"
+
     if (!$SourceFace) {
         throw "No source face image found. Put one image in source_faces or set DEEPLIVECAM_SOURCE_FACE."
     }
@@ -90,11 +106,31 @@ try {
         $name = ((& $Adb -s $candidate emu avd name 2>$null) -join "").Replace("OK", "").Trim()
         if ($name -eq $AvdName) { $Serial = $candidate; break }
     }
+    if ($Serial) {
+        $qemu = Get-CimInstance Win32_Process -Filter "Name='qemu-system-x86_64.exe'" |
+            Where-Object { $_.CommandLine -like "*@$AvdName*" } | Select-Object -First 1
+        if (!$qemu -or $qemu.CommandLine -notlike '*-writable-system*') {
+            Report "Restarting AVD because it was not launched in the pinned writable HAL mode..."
+            & $Adb -s $Serial emu kill 2>$null | Out-Null
+            $Serial = $null
+            $stopDeadline = (Get-Date).AddSeconds(30)
+            do {
+                Start-Sleep -Seconds 1
+                $oldQemu = Get-CimInstance Win32_Process -Filter "Name='qemu-system-x86_64.exe'" |
+                    Where-Object { $_.CommandLine -like "*@$AvdName*" }
+            } while ($oldQemu -and (Get-Date) -lt $stopDeadline)
+            if ($oldQemu) { throw "Old AVD process did not stop cleanly within 30 seconds." }
+            & $Adb reconnect offline 2>$null | Out-Null
+        }
+    }
     if (!$Serial) {
         $available = @(& $Emulator -list-avds 2>$null)
         if ($AvdName -notin $available) { throw "Required AVD $AvdName is missing. Run setup_mobile_phone.ps1." }
         Report "Starting pinned AVD $AvdName..."
-        Start-Process -FilePath $Emulator -ArgumentList @("@$AvdName", "-writable-system", "-selinux", "permissive", "-no-boot-anim")
+        Start-Process -FilePath $Emulator -ArgumentList @(
+            "@$AvdName", "-writable-system", "-selinux", "permissive",
+            "-no-boot-anim", "-no-snapshot-load", "-no-snapshot-save"
+        )
     }
     $Serial = Wait-AndroidBoot $Adb
     & $Adb -s $Serial root | Out-Null
@@ -149,40 +185,47 @@ try {
 
     $qualityPreset = if ($Mode -eq 'quality') { 'high_quality' } else { 'low_latency' }
     $faceSmooth = if ($Mode -eq 'quality') { '0.35' } else { '0.25' }
+    $quotedCameraName = '"' + $CameraName.Replace('"', '\"') + '"'
     $deepLiveArgs = @(
         $RunPy, '--source', $SourceFace, '--execution-provider', 'cuda', '--execution-threads', '2',
         '--frame-processor', 'face_swapper_hyperswap', '--live-resizable', '--live-fps-debug',
         '--live-health-log', '--similar-face-distance', '1.5', '--live-face-smooth', $faceSmooth,
         '--live-face-fit-scale', '1.06', '--quality-preset', $qualityPreset,
+        '--camera-name', $quotedCameraName,
         '--live-obs-output-window', '--no-live-virtualcam-output', '--auto-live', '-l', 'zh'
     )
     $deepLiveArgs += if ($Mode -eq 'quality') { '--live-xseg-mask' } else { '--no-live-xseg-mask' }
-    Start-Process -FilePath $Python -ArgumentList $deepLiveArgs -WorkingDirectory $Root
-
-    $windowDeadline = (Get-Date).AddMinutes(3)
-    do {
-        Start-Sleep -Seconds 2
-        $outputWindow = Get-Process python -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -eq 'OBS Output' }
-    } while (!$outputWindow -and (Get-Date) -lt $windowDeadline)
-    if (!$outputWindow) { throw "DeepLiveCam OBS Output window did not appear. Check the physical camera and Live mode." }
-    Report "DeepLiveCam output window ready (OBS application is not used)"
-
+    $deepLiveLog = Join-Path $Logs "mobile_deeplivecam_live.log"
+    $deepLiveErr = Join-Path $Logs "mobile_deeplivecam_live.err.log"
     $bridgeLog = Join-Path $Logs "mobile_hal_bridge_live.log"
     $bridgeErr = Join-Path $Logs "mobile_hal_bridge_live.err.log"
-    Remove-Item $bridgeLog, $bridgeErr -Force -ErrorAction SilentlyContinue
+    Remove-Item $deepLiveLog, $deepLiveErr, $bridgeLog, $bridgeErr -Force -ErrorAction SilentlyContinue
+    # Keep camera diagnostics from turning non-ASCII FOURCC text into a GBK
+    # UnicodeEncodeError when this script is launched outside the UTF-8 CMD wrapper.
+    $env:PYTHONUTF8 = '1'
+    $env:PYTHONIOENCODING = 'utf-8'
+    $deepLiveProcess = Start-Process -FilePath $Python -ArgumentList $deepLiveArgs -WorkingDirectory $Root -RedirectStandardOutput $deepLiveLog -RedirectStandardError $deepLiveErr -PassThru
+
     $env:MOBILE_HAL_FRIDA_PY = $FridaPy
     $bridgeProcess = Start-Process -FilePath $Python -ArgumentList @($Bridge, '--fps', '15') -WorkingDirectory $Root -RedirectStandardOutput $bridgeLog -RedirectStandardError $bridgeErr -WindowStyle Hidden -PassThru
     [IO.File]::WriteAllText((Join-Path $Logs "mobile_hal_bridge.pid"), [string]$bridgeProcess.Id, [Text.Encoding]::ASCII)
-    $bridgeDeadline = (Get-Date).AddSeconds(30)
+    $bridgeDeadline = (Get-Date).AddMinutes(3)
     do {
         Start-Sleep -Milliseconds 500
-        $bridgeReady = (Test-Path $bridgeLog) -and (Select-String -Path $bridgeLog -SimpleMatch "'event': 'ready'" -Quiet)
+        $fridaReady = (Test-Path $bridgeLog) -and (Select-String -Path $bridgeLog -SimpleMatch "'event': 'ready'" -Quiet)
+        $firstFrameReady = (Test-Path $bridgeLog) -and (Select-String -Path $bridgeLog -SimpleMatch '[bridge] sent=1 ' -Quiet)
         if ($bridgeProcess.HasExited) {
             $errorText = if (Test-Path $bridgeErr) { Get-Content $bridgeErr -Raw } else { '' }
             throw "Mobile HAL bridge exited early. $errorText"
         }
-    } while (!$bridgeReady -and (Get-Date) -lt $bridgeDeadline)
-    if (!$bridgeReady) { throw "Mobile HAL bridge did not attach within 30 seconds." }
+        if ($deepLiveProcess.HasExited) {
+            $errorText = if (Test-Path $deepLiveErr) { Get-Content $deepLiveErr -Raw } else { '' }
+            throw "DeepLiveCam exited before producing video. $errorText"
+        }
+    } while ((!$fridaReady -or !$firstFrameReady) -and (Get-Date) -lt $bridgeDeadline)
+    if (!$fridaReady) { throw "Mobile HAL bridge did not attach to the camera provider." }
+    if (!$firstFrameReady) { throw "DeepLiveCam did not produce a capturable OBS Output frame within 3 minutes." }
+    Report "DeepLiveCam first output frame verified (OBS application is not used)"
     Report "Live HAL bridge ready: center 9:16 crop, upright orientation, 15 fps input"
 
     $wa = ((& $Adb -s $Serial shell pm path com.whatsapp 2>$null) -join "").Trim()
@@ -192,6 +235,12 @@ try {
     Report "RESULT: READY"
     Save-Report
 } catch {
+    if ($bridgeProcess -and !$bridgeProcess.HasExited) {
+        Stop-Process -Id $bridgeProcess.Id -Force -ErrorAction SilentlyContinue
+    }
+    if ($deepLiveProcess -and !$deepLiveProcess.HasExited) {
+        Stop-Process -Id $deepLiveProcess.Id -Force -ErrorAction SilentlyContinue
+    }
     Report ("RESULT: ERROR - " + $_.Exception.Message)
     Save-Report
     exit 1

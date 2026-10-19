@@ -11,6 +11,13 @@ $Root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $Runtime = Join-Path $PSScriptRoot "runtime"
 $Python = Join-Path $Root "python\python.exe"
 $Ffmpeg = Join-Path $Root "ffmpeg\bin\ffmpeg.exe"
+$BaseRuntimeFiles = @(
+    $Python,
+    $Ffmpeg,
+    (Join-Path $Root "models\hyperswap_1a_256.onnx"),
+    (Join-Path $Root "models\inswapper_128.onnx"),
+    (Join-Path $Root "models\insightface\models\buffalo_l\det_10g.onnx")
+)
 
 function Find-AndroidSdk {
     if ($SdkRoot) { return $SdkRoot }
@@ -74,7 +81,10 @@ function Build-FrontConfig([string]$Source, [string]$Target) {
     [IO.File]::WriteAllText($Target, ($camera | ConvertTo-Json -Depth 20), [Text.UTF8Encoding]::new($false))
 }
 
-if (!(Test-Path $Python) -or !(Test-Path $Ffmpeg)) { throw "Project Python/FFmpeg runtime is incomplete." }
+$missingBaseRuntime = @($BaseRuntimeFiles | Where-Object { !(Test-Path $_) })
+if ($missingBaseRuntime.Count -gt 0) {
+    throw "Base DeepLiveCam runtime is incomplete. Git does not contain these large files. Restore them from the complete project package first:`n$($missingBaseRuntime -join "`n")"
+}
 New-Item -ItemType Directory -Force $Runtime | Out-Null
 $Sdk = Find-AndroidSdk
 $Adb = Join-Path $Sdk "platform-tools\adb.exe"

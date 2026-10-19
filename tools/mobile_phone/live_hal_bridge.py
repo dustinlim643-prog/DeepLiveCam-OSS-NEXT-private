@@ -90,6 +90,7 @@ def main() -> int:
     parser.add_argument("--seconds", type=float, default=0.0)
     parser.add_argument("--fps", type=int, default=15)
     parser.add_argument("--window", default="OBS Output")
+    parser.add_argument("--wait-for-window", type=float, default=180.0)
     parser.add_argument(
         "--raw-landscape",
         action="store_true",
@@ -152,38 +153,58 @@ def main() -> int:
         "rawvideo",
         "pipe:1",
     ]
-    process = subprocess.Popen(
-        command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        creationflags=subprocess.CREATE_NO_WINDOW,
-    )
-    stderr_thread = threading.Thread(
-        target=drain_stderr, args=(process.stderr,), daemon=True
-    )
-    stderr_thread.start()
-
     started = time.monotonic()
     sent = 0
+    process = None
     try:
+        window_deadline = time.monotonic() + args.wait_for_window
+        first_frame = None
+        while first_frame is None:
+            process = subprocess.Popen(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+            )
+            stderr_thread = threading.Thread(
+                target=drain_stderr, args=(process.stderr,), daemon=True
+            )
+            stderr_thread.start()
+            first_frame = read_exact(process.stdout, FRAME_SIZE)
+            if first_frame is not None:
+                break
+            process.wait(timeout=5)
+            if time.monotonic() >= window_deadline:
+                raise RuntimeError(
+                    f"Window {args.window!r} did not produce a frame within "
+                    f"{args.wait_for_window:.0f} seconds"
+                )
+            time.sleep(1)
+
+        script.post({"type": "frame"}, data=first_frame)
+        sent = 1
+        stream_started = time.monotonic()
+        print("[bridge] sent=1 first_frame_ready", flush=True)
+
         while args.seconds <= 0 or time.monotonic() - started < args.seconds:
             frame = read_exact(process.stdout, FRAME_SIZE)
             if frame is None:
                 raise RuntimeError("FFmpeg stopped producing frames")
             script.post({"type": "frame"}, data=frame)
             sent += 1
-            if sent == 1 or sent % (args.fps * 5) == 0:
-                elapsed = max(time.monotonic() - started, 0.001)
+            if sent % (args.fps * 5) == 0:
+                elapsed = max(time.monotonic() - stream_started, 0.001)
                 print(
                     f"[bridge] sent={sent} rate={sent / elapsed:.1f} fps",
                     flush=True,
                 )
     finally:
-        process.terminate()
-        try:
-            process.wait(timeout=3)
-        except subprocess.TimeoutExpired:
-            process.kill()
+        if process is not None and process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                process.kill()
         session.detach()
     return 0
 

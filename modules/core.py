@@ -72,6 +72,7 @@ def parse_args() -> None:
     program.add_argument('--live-virtualcam-output', help='send live frames directly to OBS Virtual Camera', dest='live_virtualcam_output', action='store_true', default=True)
     program.add_argument('--no-live-virtualcam-output', help='disable direct OBS Virtual Camera output', dest='live_virtualcam_output', action='store_false')
     program.add_argument('--auto-live', help='start live webcam preview automatically after UI opens', dest='auto_live', action='store_true', default=False)
+    program.add_argument('--camera-name', help='select the live camera by its DirectShow display name', dest='camera_name', default='')
     program.add_argument('-v', '--version', action='version', version=f'{modules.metadata.name} {modules.metadata.version}')
 
     # register deprecated args
@@ -112,6 +113,7 @@ def parse_args() -> None:
     modules.globals.live_obs_output_window = args.live_obs_output_window
     modules.globals.live_virtualcam_output = args.live_virtualcam_output
     modules.globals.auto_live = args.auto_live
+    modules.globals.camera_name = args.camera_name
     modules.globals.lang = args.lang
 
     # The argparse default (None) avoids evaluating suggest_execution_threads()

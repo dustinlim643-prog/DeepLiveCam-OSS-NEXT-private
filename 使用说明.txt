@@ -34,7 +34,11 @@ OBS Virtual Camera、DroidCam、WeCam、VCam、BlueStacks、MEmu。
 3. 脚本会自动启动并校验 AVD、Camera HAL、Frida、DeepLiveCam、实时桥接和 WhatsApp。
 4. 看到 RESULT: READY 后，在 WhatsApp 内拨打视频。
 
+第一次启动或模拟器被完全关闭后，需要执行约 80–90 秒的无快照冷启动。日常使用不要反复关闭模拟器；入口会复用已经运行的固定 AVD，后续启动会明显更快。writable Camera HAL 模式不能安全使用 Quick Boot，脚本会主动禁用快照，避免黑屏和 ADB offline 卡住。
+
 脚本会先拒绝错误环境，不会静默降级到 4:3：
+- Windows 必须检测到状态正常的摄像头；未插摄像头时立即停止。
+- 实体摄像头按设备名称选择，不使用容易因虚拟摄像头安装顺序变化的数字编号。
 - AVD 名称必须是 DeepLiveCam_HAL_Test_API37。
 - Android 指纹必须与已验证的 API 37 镜像完全一致。
 - Camera HAL 文件 SHA-256 必须完全一致。
@@ -45,18 +49,23 @@ OBS Virtual Camera、DroidCam、WeCam、VCam、BlueStacks、MEmu。
 启动报告保存到 logs\mobile_phone_start_时间.txt。
 实时桥接日志保存到 logs\mobile_hal_bridge_live.log 和 .err.log。
 
+已固化的启动保护：writable HAL 模式禁用 Quick Boot 快照；自动清理 ADB offline；按设备名称选择实体摄像头；Python 输出固定 UTF-8；FFmpeg 必须取得 DeepLiveCam 首帧后才允许启动 WhatsApp。不要删除这些检查来缩短表面启动时间。
+
 
 四、新电脑一次性部署
 
-1. 安装 Android Studio / Android SDK，并包含：
+Git 只同步代码。以下大文件目录不会进入 Git：python、ffmpeg、models、source_faces。全新电脑必须先从完整 DeepLiveCam 安装包恢复 python、ffmpeg 和 models；source_faces 只放用户自己的源图。已经具备这些目录的另一台电脑可以直接拉取代码。
+
+1. 准备完整 DeepLiveCam 基础运行包，确认 python\python.exe、ffmpeg\bin\ffmpeg.exe、HyperSwap、InSwapper 和 InsightFace 模型存在。
+2. 安装 Android Studio / Android SDK，并包含：
    system-images;android-37.0;google_apis;x86_64，必须是 revision 6。
-2. 在 PowerShell 运行：
+3. 在 PowerShell 运行：
    powershell -NoProfile -ExecutionPolicy Bypass -File tools\mobile_phone\setup_mobile_phone.ps1
-3. 等脚本完成固定 AVD、Camera HAL 配置、Frida 运行时和测试视频部署。
-4. 将换脸源图放入 source_faces。默认优先 current_test_source.jpg，也可设置 DEEPLIVECAM_SOURCE_FACE 指向其它图片。
-5. 在该 AVD 内手动安装官方 WhatsApp，并由用户完成一次登录。
-6. 如当地网络需要 VPN，由用户在 AVD 内完成一次 VPN 登录和 Android 授权。
-7. 以后只运行 2_START_MOBILE_PHONE_FULLSCREEN.cmd。
+4. 等脚本完成固定 AVD、Camera HAL 配置、Frida 运行时和测试视频部署。
+5. 将换脸源图放入 source_faces。默认优先 current_test_source.jpg，也可设置 DEEPLIVECAM_SOURCE_FACE 指向其它图片。
+6. 在该 AVD 内手动安装官方 WhatsApp，并由用户完成一次登录。
+7. 如当地网络需要 VPN，由用户在 AVD 内完成一次 VPN 登录和 Android 授权。
+8. 以后只运行 2_START_MOBILE_PHONE_FULLSCREEN.cmd。
 
 无法由 Git 自动迁移的用户数据只有换脸源图、WhatsApp 登录和 VPN 授权。程序配置、版本检查和摄像头参数由脚本完成；如果直接迁移完整项目目录，source_faces 中的图片会随目录保留。
 
