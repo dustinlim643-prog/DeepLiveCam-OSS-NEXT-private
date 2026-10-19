@@ -34,7 +34,7 @@ OBS Virtual Camera、DroidCam、WeCam、VCam、BlueStacks、MEmu。
 3. 脚本会自动启动并校验 AVD、Camera HAL、Frida、DeepLiveCam、实时桥接和 WhatsApp。
 4. 看到 RESULT: READY 后，在 WhatsApp 内拨打视频。
 
-第一次启动或模拟器被完全关闭后，需要执行约 80–90 秒的无快照冷启动。日常使用不要反复关闭模拟器；入口会复用已经运行的固定 AVD，后续启动会明显更快。writable Camera HAL 模式不能安全使用 Quick Boot，脚本会主动禁用快照，避免黑屏和 ADB offline 卡住。
+第一次启动或模拟器被完全关闭后，需要执行约 30–90 秒的无快照冷启动，具体取决于磁盘和系统缓存。日常使用不要反复关闭模拟器；入口会复用已经运行的固定 AVD，后续启动会明显更快。writable Camera HAL 模式不能安全使用 Quick Boot，脚本会主动禁用快照，避免黑屏和 ADB offline 卡住。
 
 脚本会先拒绝错误环境，不会静默降级到 4:3：
 - Windows 必须检测到状态正常的摄像头；未插摄像头时立即停止。
