@@ -94,6 +94,7 @@ New-Item -ItemType Directory -Force $Runtime | Out-Null
 $Sdk = Find-AndroidSdk
 $Adb = Join-Path $Sdk "platform-tools\adb.exe"
 $Emulator = Join-Path $Sdk "emulator\emulator.exe"
+$EmulatorCheck = Join-Path $Sdk "emulator\emulator-check.exe"
 $AvdManager = Get-ChildItem (Join-Path $Sdk "cmdline-tools") -Filter avdmanager.bat -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
 $Java = if ($env:JAVA_HOME) { Join-Path $env:JAVA_HOME "bin\java.exe" } else { "" }
 if (!$Java -or !(Test-Path $Java)) {
@@ -149,6 +150,11 @@ Set-IniValue $config "hw.lcd.density" "420"
 Set-IniValue $config "hw.cpu.ncore" "4"
 Set-IniValue $config "hw.ramSize" "2G"
 Set-IniValue $config "disk.dataPartition.size" "16G"
+
+$accelResult = (& $EmulatorCheck accel 2>&1) -join "`n"
+if ($LASTEXITCODE -ne 0) {
+    throw "Android emulator hardware acceleration is unavailable. Enable Windows Hypervisor Platform and reboot before retrying.`n$accelResult"
+}
 
 $running = @(& $Adb devices | Select-String '^emulator-\d+\s+device' | ForEach-Object { ($_.Line -split '\s+')[0] })
 foreach ($serial in $running) { & $Adb -s $serial emu kill 2>$null | Out-Null }
