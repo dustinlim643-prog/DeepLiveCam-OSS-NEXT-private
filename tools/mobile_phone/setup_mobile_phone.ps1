@@ -116,7 +116,14 @@ $env:ANDROID_AVD_HOME = Join-Path $env:USERPROFILE ".android\avd"
 $avds = @(& $Emulator -list-avds 2>$null)
 if ($AvdName -notin $avds) {
     if (!$AvdManager) { throw "avdmanager.bat not found. Install Android SDK Command-line Tools." }
-    $image = Join-Path $Sdk "system-images\android-37.0\google_apis\x86_64\system.img"
+    $imageDirectory = Join-Path $Sdk "system-images\android-37.0\google_apis\x86_64"
+    $image = Join-Path $imageDirectory "system.img"
+    $portableImageDirectory = Join-Path $Sdk "x86_64"
+    if (!(Test-Path $image) -and (Test-Path (Join-Path $portableImageDirectory "system.img"))) {
+        Write-Host "Restoring portable API 37 image directory layout..."
+        New-Item -ItemType Directory -Force -Path (Split-Path $imageDirectory -Parent) | Out-Null
+        Move-Item -LiteralPath $portableImageDirectory -Destination $imageDirectory
+    }
     if (!(Test-Path $image)) { throw "Required system image is missing: system-images;android-37.0;google_apis;x86_64 revision 6." }
     'no' | & $AvdManager create avd --force --name $AvdName --package "system-images;android-37.0;google_apis;x86_64" --device "pixel_7"
 }
