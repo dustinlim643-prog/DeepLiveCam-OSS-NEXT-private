@@ -15,7 +15,7 @@ DeepLiveCam 使用说明
 
 DeepLiveCam 的 OBS Output 窗口
 -> 项目内置 FFmpeg 抓取窗口
--> 中央 9:16 裁切、方向校正、1280x720 I420 / 15 fps
+-> 中央 9:16 裁切、方向校正、1280x720 I420 / 24 fps
 -> Frida 注入固定 API 37 AVD 的 Emulated Camera HAL
 -> Front / 270 度 / 仅 1280x720
 -> 官方 WhatsApp Android
@@ -34,6 +34,8 @@ OBS Virtual Camera、DroidCam、WeCam、VCam、BlueStacks、MEmu。
 3. 脚本会自动启动并校验 AVD、Camera HAL、Frida、DeepLiveCam、实时桥接和 WhatsApp。
 4. 看到 RESULT: READY 后，在 WhatsApp 内拨打视频。
 
+通话期间只保留模拟器内 QuickQ 连接，关闭电脑端 QuickQ。DeepLiveCam、ADB、Frida 和 FFmpeg 都是本机链路，不需要电脑端 VPN；两端同时连接会形成双层 VPN，增加抖动、丢包和延迟。需要 Git 拉取或电脑端下载时，先结束通话，再单独连接电脑端 QuickQ。启动脚本检测到电脑 QuickQ 与 Android VPN 同时活动时会输出 WARNING，但不会擅自关闭软件。
+
 第一次启动或模拟器被完全关闭后，需要执行约 30–90 秒的无快照冷启动，具体取决于磁盘和系统缓存。日常使用不要反复关闭模拟器；入口会复用已经运行的固定 AVD，后续启动会明显更快。writable Camera HAL 模式不能安全使用 Quick Boot，脚本会主动禁用快照，避免黑屏和 ADB offline 卡住。
 
 脚本会先拒绝错误环境，不会静默降级到 4:3：
@@ -49,7 +51,7 @@ OBS Virtual Camera、DroidCam、WeCam、VCam、BlueStacks、MEmu。
 启动报告保存到 logs\mobile_phone_start_时间.txt。
 实时桥接日志保存到 logs\mobile_hal_bridge_live.log 和 .err.log。
 
-已固化的启动保护：writable HAL 模式禁用 Quick Boot 快照；自动清理 ADB offline；按设备名称选择实体摄像头；Python 输出固定 UTF-8；FFmpeg 必须取得 DeepLiveCam 首帧后才允许启动 WhatsApp。不要删除这些检查来缩短表面启动时间。
+已固化的启动保护：writable HAL 模式禁用 Quick Boot 快照；自动清理 ADB offline；按设备名称选择实体摄像头；Python 输出固定 UTF-8；FFmpeg 必须取得 DeepLiveCam 首帧后才允许启动 WhatsApp；窗口抓取短暂中断时自动重连。不要删除这些检查来缩短表面启动时间。
 
 
 四、新电脑一次性部署
@@ -75,6 +77,8 @@ Git 只同步代码。以下大文件目录不会进入 Git：python、ffmpeg、
 五、画面取舍
 
 当前输出采用横向源画面的中央 9:16 区域，以换取对方手机真正竖屏全屏。它不会拉伸人物，但会裁掉左右画面，因此摄像头距离和构图仍需按竖屏取景调整。
+
+默认 low_latency 模式使用 24 fps 和 bilinear 缩放，优先降低延迟；quality 模式使用 24 fps 和 bicubic 缩放，边缘更清晰但负载略高。中央 404x720 有效区域需要放大，因此只改输出分辨率不能凭空增加细节；真正进一步提升画质，需要提高 DeepLiveCam 的源帧分辨率或改为直接帧传输。
 
 未来若优化性能，唯一合理方向是让 DeepLiveCam 直接输出 I420 帧，省掉窗口抓取和 FFmpeg。该优化必须先做独立对照测试；在达到当前画质、方向、稳定性和远端全屏效果前，不得替换现有正式链路。
 

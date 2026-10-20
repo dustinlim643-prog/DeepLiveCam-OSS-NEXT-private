@@ -85,10 +85,39 @@ def drain_stderr(stream) -> None:
             print(f"[ffmpeg] {text}", flush=True)
 
 
+def start_ffmpeg(command: list[str]) -> subprocess.Popen:
+    process = subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        creationflags=subprocess.CREATE_NO_WINDOW,
+    )
+    threading.Thread(
+        target=drain_stderr, args=(process.stderr,), daemon=True
+    ).start()
+    return process
+
+
+def stop_ffmpeg(process: subprocess.Popen | None) -> None:
+    if process is None or process.poll() is not None:
+        return
+    process.terminate()
+    try:
+        process.wait(timeout=3)
+    except subprocess.TimeoutExpired:
+        process.kill()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--seconds", type=float, default=0.0)
     parser.add_argument("--fps", type=int, default=15)
+    parser.add_argument(
+        "--scale-flags",
+        choices=("fast_bilinear", "bilinear", "bicubic"),
+        default="bilinear",
+        help="FFmpeg scaler used after the phone-sensor crop",
+    )
     parser.add_argument("--window", default="OBS Output")
     parser.add_argument("--wait-for-window", type=float, default=180.0)
     parser.add_argument(
@@ -123,13 +152,18 @@ def main() -> int:
     script.on("message", lambda message, _data: print(message, flush=True))
     script.load()
 
-    video_filter = "scale=1280:720:flags=fast_bilinear,format=yuv420p"
+    if not 1 <= args.fps <= 30:
+        parser.error("--fps must be between 1 and 30")
+
+    video_filter = (
+        f"scale=1280:720:flags={args.scale_flags},format=yuv420p"
+    )
     if not args.raw_landscape:
         # A portrait phone uses a 9:16 slice of its landscape-oriented sensor.
         # Pre-rotate that slice so Android's Front/270 transform displays it upright.
         video_filter = (
             "crop=404:720:438:0,transpose=clock,vflip,"
-            "scale=1280:720:flags=fast_bilinear,format=yuv420p"
+            f"scale=1280:720:flags={args.scale_flags},format=yuv420p"
         )
 
     command = [
@@ -160,16 +194,7 @@ def main() -> int:
         window_deadline = time.monotonic() + args.wait_for_window
         first_frame = None
         while first_frame is None:
-            process = subprocess.Popen(
-                command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                creationflags=subprocess.CREATE_NO_WINDOW,
-            )
-            stderr_thread = threading.Thread(
-                target=drain_stderr, args=(process.stderr,), daemon=True
-            )
-            stderr_thread.start()
+            process = start_ffmpeg(command)
             first_frame = read_exact(process.stdout, FRAME_SIZE)
             if first_frame is not None:
                 break
@@ -189,7 +214,21 @@ def main() -> int:
         while args.seconds <= 0 or time.monotonic() - started < args.seconds:
             frame = read_exact(process.stdout, FRAME_SIZE)
             if frame is None:
-                raise RuntimeError("FFmpeg stopped producing frames")
+                print("[bridge] FFmpeg capture stopped; reconnecting", flush=True)
+                stop_ffmpeg(process)
+                recovery_deadline = time.monotonic() + 15
+                frame = None
+                while frame is None and time.monotonic() < recovery_deadline:
+                    time.sleep(0.5)
+                    process = start_ffmpeg(command)
+                    frame = read_exact(process.stdout, FRAME_SIZE)
+                    if frame is None:
+                        stop_ffmpeg(process)
+                if frame is None:
+                    raise RuntimeError(
+                        "FFmpeg could not recover the OBS Output capture within 15 seconds"
+                    )
+                print("[bridge] FFmpeg capture recovered", flush=True)
             script.post({"type": "frame"}, data=frame)
             sent += 1
             if sent % (args.fps * 5) == 0:
@@ -199,12 +238,7 @@ def main() -> int:
                     flush=True,
                 )
     finally:
-        if process is not None and process.poll() is None:
-            process.terminate()
-            try:
-                process.wait(timeout=3)
-            except subprocess.TimeoutExpired:
-                process.kill()
+        stop_ffmpeg(process)
         session.detach()
     return 0
 

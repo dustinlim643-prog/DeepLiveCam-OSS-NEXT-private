@@ -153,6 +153,19 @@ try {
     & $Adb -s $Serial shell wm dismiss-keyguard | Out-Null
     Report "AVD ready: $Serial"
 
+    $hostQuickQ = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match '(?i)quickq|s17ray' -or $_.ExecutablePath -match '(?i)quickq|s17ray' })
+    $androidTun = ((& $Adb -s $Serial shell ip link show tun0 2>$null) -join "`n").Trim()
+    if ($hostQuickQ.Count -gt 0 -and $androidTun) {
+        Report "WARNING: Host QuickQ and Android VPN are both active. For WhatsApp calls, disconnect Host QuickQ and keep Android QuickQ connected."
+    } elseif ($androidTun) {
+        Report "Network route: Android VPN active; Host QuickQ not detected (recommended for calls)"
+    } elseif ($hostQuickQ.Count -gt 0) {
+        Report "Network route: Host QuickQ detected; Android VPN is not active"
+    } else {
+        Report "Network route: no active QuickQ tunnel detected"
+    }
+
     $fingerprint = ((& $Adb -s $Serial shell getprop ro.build.fingerprint) -join "").Trim()
     if ($fingerprint -ne $ExpectedFingerprint) { throw "Android image drift detected. Expected $ExpectedFingerprint; got $fingerprint" }
     $halHash = (((& $Adb -s $Serial shell sha256sum /vendor/lib64/libgooglecamerahwl_impl.so) -join "") -split '\s+')[0]
@@ -214,6 +227,8 @@ try {
 
     $qualityPreset = if ($Mode -eq 'quality') { 'high_quality' } else { 'low_latency' }
     $faceSmooth = if ($Mode -eq 'quality') { '0.35' } else { '0.25' }
+    $bridgeFps = 24
+    $bridgeScaler = if ($Mode -eq 'quality') { 'bicubic' } else { 'bilinear' }
     $quotedCameraName = '"' + $CameraName.Replace('"', '\"') + '"'
     $deepLiveArgs = @(
         $RunPy, '--source', $SourceFace, '--execution-provider', 'cuda', '--execution-threads', '2',
@@ -236,7 +251,9 @@ try {
     $deepLiveProcess = Start-Process -FilePath $Python -ArgumentList $deepLiveArgs -WorkingDirectory $Root -RedirectStandardOutput $deepLiveLog -RedirectStandardError $deepLiveErr -PassThru
 
     $env:MOBILE_HAL_FRIDA_PY = $FridaPy
-    $bridgeProcess = Start-Process -FilePath $Python -ArgumentList @($Bridge, '--fps', '15') -WorkingDirectory $Root -RedirectStandardOutput $bridgeLog -RedirectStandardError $bridgeErr -WindowStyle Hidden -PassThru
+    $bridgeProcess = Start-Process -FilePath $Python -ArgumentList @(
+        $Bridge, '--fps', [string]$bridgeFps, '--scale-flags', $bridgeScaler
+    ) -WorkingDirectory $Root -RedirectStandardOutput $bridgeLog -RedirectStandardError $bridgeErr -WindowStyle Hidden -PassThru
     [IO.File]::WriteAllText((Join-Path $Logs "mobile_hal_bridge.pid"), [string]$bridgeProcess.Id, [Text.Encoding]::ASCII)
     $bridgeDeadline = (Get-Date).AddMinutes(3)
     do {
@@ -256,7 +273,7 @@ try {
     if (!$firstFrameReady) { throw "DeepLiveCam did not produce a capturable OBS Output frame within 3 minutes." }
     Restore-VirtualCameras
     Report "DeepLiveCam first output frame verified (OBS application is not used)"
-    Report "Live HAL bridge ready: center 9:16 crop, upright orientation, 15 fps input"
+    Report "Live HAL bridge ready: center 9:16 crop, upright orientation, $bridgeFps fps, $bridgeScaler scaler"
 
     $wa = ((& $Adb -s $Serial shell pm path com.whatsapp 2>$null) -join "").Trim()
     if (!$wa) { throw "Official WhatsApp is not installed in $AvdName. Install/login once, then rerun." }
