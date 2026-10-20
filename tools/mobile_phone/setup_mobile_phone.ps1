@@ -47,6 +47,46 @@ function Wait-AndroidBoot([string]$Adb, [int]$TimeoutSeconds = 300) {
     throw "AVD did not finish booting within $TimeoutSeconds seconds."
 }
 
+function Invoke-AdbCommand([string]$Adb, [string[]]$Arguments) {
+    $previousPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $output = @(& $Adb @Arguments 2>&1)
+        $exitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousPreference
+    }
+    return [pscustomobject]@{ ExitCode = $exitCode; Output = ($output -join "`n") }
+}
+
+function Enable-WritableVendor([string]$Adb, [string]$Serial) {
+    for ($attempt = 1; $attempt -le 3; $attempt++) {
+        [void](Invoke-AdbCommand $Adb @('-s', $Serial, 'root'))
+        [void](Invoke-AdbCommand $Adb @('-s', $Serial, 'wait-for-device'))
+        Start-Sleep -Seconds 2
+        $identity = Invoke-AdbCommand $Adb @('-s', $Serial, 'shell', 'id')
+        if ($identity.ExitCode -eq 0 -and $identity.Output -match 'uid=0') { break }
+        if ($attempt -eq 3) { throw "ADB root failed after three attempts.`n$($identity.Output)" }
+    }
+
+    $remount = Invoke-AdbCommand $Adb @('-s', $Serial, 'remount')
+    $writeTest = Invoke-AdbCommand $Adb @('-s', $Serial, 'shell', 'touch /vendor/etc/config/.dlc_write_test && rm /vendor/etc/config/.dlc_write_test')
+    if ($remount.ExitCode -eq 0 -and $writeTest.ExitCode -eq 0) { return }
+
+    Write-Host "Disabling Android verified partitions and rebooting once..."
+    [void](Invoke-AdbCommand $Adb @('-s', $Serial, 'disable-verity'))
+    [void](Invoke-AdbCommand $Adb @('-s', $Serial, 'reboot'))
+    $Serial = Wait-AndroidBoot $Adb
+    [void](Invoke-AdbCommand $Adb @('-s', $Serial, 'root'))
+    [void](Invoke-AdbCommand $Adb @('-s', $Serial, 'wait-for-device'))
+    Start-Sleep -Seconds 2
+    $remount = Invoke-AdbCommand $Adb @('-s', $Serial, 'remount')
+    $writeTest = Invoke-AdbCommand $Adb @('-s', $Serial, 'shell', 'touch /vendor/etc/config/.dlc_write_test && rm /vendor/etc/config/.dlc_write_test')
+    if ($remount.ExitCode -ne 0 -or $writeTest.ExitCode -ne 0) {
+        throw "Unable to make /vendor writable.`nadb remount:`n$($remount.Output)`nwrite test:`n$($writeTest.Output)"
+    }
+}
+
 function Set-IniValue([string]$Path, [string]$Key, [string]$Value) {
     $lines = [System.Collections.Generic.List[string]]::new()
     $lines.AddRange([string[]](Get-Content -LiteralPath $Path))
@@ -161,8 +201,7 @@ foreach ($serial in $running) { & $Adb -s $serial emu kill 2>$null | Out-Null }
 Start-Sleep -Seconds 4
 Start-Process -FilePath $Emulator -ArgumentList @("@$AvdName", "-writable-system", "-selinux", "permissive", "-no-snapshot-load", "-no-boot-anim")
 $Serial = Wait-AndroidBoot $Adb
-& $Adb -s $Serial root | Out-Null
-Start-Sleep -Seconds 2
+Enable-WritableVendor $Adb $Serial
 
 $fingerprint = ((& $Adb -s $Serial shell getprop ro.build.fingerprint) -join "").Trim()
 if ($fingerprint -ne $ExpectedFingerprint) {
@@ -190,7 +229,6 @@ if (!(Test-Path $Video)) {
     if ($LASTEXITCODE -ne 0) { throw "Camera fallback video generation failed." }
 }
 
-& $Adb -s $Serial shell "mount -o rw,remount /vendor" 2>$null | Out-Null
 & $Adb -s $Serial push $Front /vendor/etc/config/emu_camera_front.json | Out-Null
 & $Adb -s $Serial push $Main /vendor/etc/config/emu_camera_main.json | Out-Null
 & $Adb -s $Serial push $Video /vendor/etc/config/phone_front_1280x720.mp4 | Out-Null
