@@ -31,7 +31,7 @@ $reportLines = [Collections.Generic.List[string]]::new()
 $deepLiveProcess = $null
 $bridgeProcess = $null
 $disabledVirtualCameras = [Collections.Generic.List[object]]::new()
-$VirtualCameraPattern = '(?i)DroidCam|OBS Virtual Camera|e2eSoft|WeCam|VCam|Virtual Camera'
+$VirtualCameraPattern = '(?i)^DroidCam Video$|OBS Virtual Camera|e2eSoft.*(?:VCam|WeCam)|(?:VCam|WeCam).*e2eSoft'
 
 function Report([string]$Text) {
     $reportLines.Add($Text)
@@ -180,7 +180,9 @@ try {
         $_.Name -eq 'obs64.exe' -and $_.ExecutablePath -like ($Root.TrimEnd('\') + '*')
     } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 
-    $virtualCameras = @(Get-PnpDevice -Class Camera -PresentOnly -ErrorAction SilentlyContinue |
+    # Virtual DirectShow devices are often registered under Image, Media, or
+    # SoftwareDevice instead of the Camera PnP class.
+    $virtualCameras = @(Get-PnpDevice -PresentOnly -ErrorAction SilentlyContinue |
         Where-Object { $_.Status -eq 'OK' -and $_.FriendlyName -match $VirtualCameraPattern })
     foreach ($camera in $virtualCameras) {
         Disable-PnpDevice -InstanceId $camera.InstanceId -Confirm:$false -ErrorAction Stop | Out-Null
