@@ -30,6 +30,8 @@ $Report = Join-Path $Logs ("mobile_phone_start_{0}.txt" -f (Get-Date -Format "yy
 $reportLines = [Collections.Generic.List[string]]::new()
 $deepLiveProcess = $null
 $bridgeProcess = $null
+$disabledVirtualCameras = [Collections.Generic.List[object]]::new()
+$VirtualCameraPattern = '(?i)DroidCam|OBS Virtual Camera|e2eSoft|WeCam|VCam|Virtual Camera'
 
 function Report([string]$Text) {
     $reportLines.Add($Text)
@@ -39,6 +41,16 @@ function Report([string]$Text) {
 function Save-Report {
     [IO.File]::WriteAllLines($Report, $reportLines, [Text.UTF8Encoding]::new($false))
     Write-Host "REPORT=$Report"
+}
+
+function Restore-VirtualCameras {
+    foreach ($camera in @($disabledVirtualCameras)) {
+        Enable-PnpDevice -InstanceId $camera.InstanceId -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+    }
+    if ($disabledVirtualCameras.Count -gt 0) {
+        Report "Restored temporarily disabled virtual cameras: $($disabledVirtualCameras.FriendlyName -join ', ')"
+        $disabledVirtualCameras.Clear()
+    }
 }
 
 function Find-AndroidSdk {
@@ -80,7 +92,7 @@ try {
     Report "Expected: DeepLiveCam -> FFmpeg I420 -> Frida -> API37 Front/270 1280x720 -> WhatsApp Android"
 
     $physicalCameras = @(Get-PnpDevice -Class Camera -PresentOnly -ErrorAction SilentlyContinue |
-        Where-Object { $_.Status -eq 'OK' })
+        Where-Object { $_.Status -eq 'OK' -and $_.FriendlyName -notmatch $VirtualCameraPattern })
     if ($physicalCameras.Count -eq 0) {
         throw "No ready Windows camera was detected. Connect the camera before starting the mobile route."
     }
@@ -168,6 +180,17 @@ try {
         $_.Name -eq 'obs64.exe' -and $_.ExecutablePath -like ($Root.TrimEnd('\') + '*')
     } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 
+    $virtualCameras = @(Get-PnpDevice -Class Camera -PresentOnly -ErrorAction SilentlyContinue |
+        Where-Object { $_.Status -eq 'OK' -and $_.FriendlyName -match $VirtualCameraPattern })
+    foreach ($camera in $virtualCameras) {
+        Disable-PnpDevice -InstanceId $camera.InstanceId -Confirm:$false -ErrorAction Stop | Out-Null
+        $disabledVirtualCameras.Add($camera)
+    }
+    if ($disabledVirtualCameras.Count -gt 0) {
+        Report "Temporarily disabled virtual cameras while opening $CameraName`: $($disabledVirtualCameras.FriendlyName -join ', ')"
+        Start-Sleep -Seconds 2
+    }
+
     & $Adb -s $Serial shell am force-stop com.android.camera2 | Out-Null
     & $Adb -s $Serial shell am force-stop com.whatsapp | Out-Null
     & $Adb -s $Serial shell "setprop ctl.restart vendor.camera-provider-2-7-google" | Out-Null
@@ -229,6 +252,7 @@ try {
     } while ((!$fridaReady -or !$firstFrameReady) -and (Get-Date) -lt $bridgeDeadline)
     if (!$fridaReady) { throw "Mobile HAL bridge did not attach to the camera provider." }
     if (!$firstFrameReady) { throw "DeepLiveCam did not produce a capturable OBS Output frame within 3 minutes." }
+    Restore-VirtualCameras
     Report "DeepLiveCam first output frame verified (OBS application is not used)"
     Report "Live HAL bridge ready: center 9:16 crop, upright orientation, 15 fps input"
 
@@ -254,6 +278,7 @@ try {
     Report "RESULT: READY"
     Save-Report
 } catch {
+    Restore-VirtualCameras
     if ($bridgeProcess -and !$bridgeProcess.HasExited) {
         Stop-Process -Id $bridgeProcess.Id -Force -ErrorAction SilentlyContinue
     }
