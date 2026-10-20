@@ -190,6 +190,8 @@ Set-IniValue $config "hw.lcd.density" "420"
 Set-IniValue $config "hw.cpu.ncore" "4"
 Set-IniValue $config "hw.ramSize" "2G"
 Set-IniValue $config "disk.dataPartition.size" "16G"
+Set-IniValue $config "hw.gpu.enabled" "yes"
+Set-IniValue $config "hw.gpu.mode" "swiftshader"
 
 $accelResult = (& $EmulatorCheck accel 2>&1) -join "`n"
 if ($LASTEXITCODE -ne 0) {
@@ -199,8 +201,11 @@ if ($LASTEXITCODE -ne 0) {
 $running = @(& $Adb devices | Select-String '^emulator-\d+\s+device' | ForEach-Object { ($_.Line -split '\s+')[0] })
 foreach ($serial in $running) { & $Adb -s $serial emu kill 2>$null | Out-Null }
 Start-Sleep -Seconds 4
-Start-Process -FilePath $Emulator -ArgumentList @("@$AvdName", "-writable-system", "-selinux", "permissive", "-no-snapshot-load", "-no-boot-anim")
+Start-Process -FilePath $Emulator -ArgumentList @("@$AvdName", "-writable-system", "-selinux", "permissive", "-gpu", "swiftshader", "-no-metrics", "-no-snapshot-load", "-no-boot-anim")
 $Serial = Wait-AndroidBoot $Adb
+& $Adb -s $Serial shell settings put global stay_on_while_plugged_in 3 | Out-Null
+& $Adb -s $Serial shell input keyevent KEYCODE_WAKEUP | Out-Null
+& $Adb -s $Serial shell wm dismiss-keyguard | Out-Null
 Enable-WritableVendor $Adb $Serial
 
 $fingerprint = ((& $Adb -s $Serial shell getprop ro.build.fingerprint) -join "").Trim()

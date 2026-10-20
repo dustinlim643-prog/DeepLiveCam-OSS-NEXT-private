@@ -8,6 +8,7 @@ param(
 $ErrorActionPreference = "Stop"
 $ExpectedFingerprint = "google/sdk_gphone64_x86_64/emu64xa:17/CE2A.260420.019/15611780:userdebug/dev-keys"
 $ExpectedHalSha256 = "5ed6ffad8da07534ec20ec1de372bf8eece877842a4f0996a87a80c4f4ad86f9"
+$EmulatorGpuMode = "swiftshader"
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $Runtime = Join-Path $PSScriptRoot "runtime"
 $Logs = Join-Path $Root "logs"
@@ -109,8 +110,8 @@ try {
     if ($Serial) {
         $qemu = Get-CimInstance Win32_Process -Filter "Name='qemu-system-x86_64.exe'" |
             Where-Object { $_.CommandLine -like "*@$AvdName*" } | Select-Object -First 1
-        if (!$qemu -or $qemu.CommandLine -notlike '*-writable-system*') {
-            Report "Restarting AVD because it was not launched in the pinned writable HAL mode..."
+        if (!$qemu -or $qemu.CommandLine -notlike '*-writable-system*' -or $qemu.CommandLine -notlike "*-gpu $EmulatorGpuMode*") {
+            Report "Restarting AVD in the pinned writable HAL and remote-safe graphics mode..."
             & $Adb -s $Serial emu kill 2>$null | Out-Null
             $Serial = $null
             $stopDeadline = (Get-Date).AddSeconds(30)
@@ -129,12 +130,16 @@ try {
         Report "Starting pinned AVD $AvdName..."
         Start-Process -FilePath $Emulator -ArgumentList @(
             "@$AvdName", "-writable-system", "-selinux", "permissive",
+            "-gpu", $EmulatorGpuMode, "-no-metrics",
             "-no-boot-anim", "-no-snapshot-load", "-no-snapshot-save"
         )
     }
     $Serial = Wait-AndroidBoot $Adb
     & $Adb -s $Serial root | Out-Null
     Start-Sleep -Seconds 2
+    & $Adb -s $Serial shell settings put global stay_on_while_plugged_in 3 | Out-Null
+    & $Adb -s $Serial shell input keyevent KEYCODE_WAKEUP | Out-Null
+    & $Adb -s $Serial shell wm dismiss-keyguard | Out-Null
     Report "AVD ready: $Serial"
 
     $fingerprint = ((& $Adb -s $Serial shell getprop ro.build.fingerprint) -join "").Trim()
