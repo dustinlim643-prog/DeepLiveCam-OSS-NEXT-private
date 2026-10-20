@@ -234,6 +234,21 @@ try {
 
     $wa = ((& $Adb -s $Serial shell pm path com.whatsapp 2>$null) -join "").Trim()
     if (!$wa) { throw "Official WhatsApp is not installed in $AvdName. Install/login once, then rerun." }
+
+    foreach ($permission in @('android.permission.CAMERA', 'android.permission.RECORD_AUDIO')) {
+        & $Adb -s $Serial shell pm grant com.whatsapp $permission 2>$null | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "Could not grant WhatsApp permission: $permission" }
+    }
+    foreach ($appOp in @('CAMERA', 'RECORD_AUDIO')) {
+        & $Adb -s $Serial shell cmd appops set com.whatsapp $appOp allow 2>$null | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "Could not allow WhatsApp app-op: $appOp" }
+    }
+    $cameraAppOp = ((& $Adb -s $Serial shell cmd appops get com.whatsapp CAMERA 2>$null) -join "`n")
+    if ($cameraAppOp -notmatch 'CAMERA:\s+allow') {
+        throw "WhatsApp camera app-op is not allowed: $cameraAppOp"
+    }
+    Report "WhatsApp camera and microphone permissions verified"
+
     & $Adb -s $Serial shell am start -n com.whatsapp/.Main | Out-Null
     Report "WhatsApp launched; account data preserved"
     Report "RESULT: READY"
