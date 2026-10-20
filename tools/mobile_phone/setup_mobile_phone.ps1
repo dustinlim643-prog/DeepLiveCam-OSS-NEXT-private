@@ -95,6 +95,15 @@ $Sdk = Find-AndroidSdk
 $Adb = Join-Path $Sdk "platform-tools\adb.exe"
 $Emulator = Join-Path $Sdk "emulator\emulator.exe"
 $AvdManager = Get-ChildItem (Join-Path $Sdk "cmdline-tools") -Filter avdmanager.bat -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+$Java = if ($env:JAVA_HOME) { Join-Path $env:JAVA_HOME "bin\java.exe" } else { "" }
+if (!$Java -or !(Test-Path $Java)) {
+    $Java = Get-ChildItem (Join-Path $Sdk "portable-jdk") -Filter java.exe -File -Recurse -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -match '\\bin\\java\.exe$' } |
+        Select-Object -First 1 -ExpandProperty FullName
+    if ($Java) { $env:JAVA_HOME = Split-Path (Split-Path $Java -Parent) -Parent }
+}
+if (!$Java -or !(Test-Path $Java)) { throw "Java 17+ not found. Restore the portable JDK under $Sdk\portable-jdk." }
+$env:Path = "$env:JAVA_HOME\bin;$env:Path"
 
 Write-Host "[1/5] Installing pinned Frida runtime $FridaVersion..."
 $FridaPy = Join-Path $Runtime "frida_py"
@@ -125,13 +134,20 @@ if ($AvdName -notin $avds) {
         Move-Item -LiteralPath $portableImageDirectory -Destination $imageDirectory
     }
     if (!(Test-Path $image)) { throw "Required system image is missing: system-images;android-37.0;google_apis;x86_64 revision 6." }
-    'no' | & $AvdManager create avd --force --name $AvdName --package "system-images;android-37.0;google_apis;x86_64" --device "pixel_7"
+    'no' | & $AvdManager create avd --force --name $AvdName --package "system-images;android-37.0;google_apis;x86_64"
+    if ($LASTEXITCODE -ne 0) { throw "AVD creation failed with exit code $LASTEXITCODE." }
 }
 $config = Join-Path $env:ANDROID_AVD_HOME "$AvdName.avd\config.ini"
 if (!(Test-Path $config)) { throw "AVD config not found: $config" }
 Set-IniValue $config "hw.camera.front" "emulated"
 Set-IniValue $config "hw.camera.front.orientation" "270"
 Set-IniValue $config "hw.camera.back" "emulated"
+Set-IniValue $config "hw.initialOrientation" "portrait"
+Set-IniValue $config "hw.lcd.width" "1080"
+Set-IniValue $config "hw.lcd.height" "2400"
+Set-IniValue $config "hw.lcd.density" "420"
+Set-IniValue $config "hw.cpu.ncore" "4"
+Set-IniValue $config "hw.ramSize" "2G"
 Set-IniValue $config "disk.dataPartition.size" "16G"
 
 $running = @(& $Adb devices | Select-String '^emulator-\d+\s+device' | ForEach-Object { ($_.Line -split '\s+')[0] })
