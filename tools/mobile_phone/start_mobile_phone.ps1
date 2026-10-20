@@ -42,7 +42,7 @@ function Save-Report {
 }
 
 function Find-AndroidSdk {
-    foreach ($candidate in @($env:ANDROID_SDK_ROOT, $env:ANDROID_HOME, "D:\Android\SDK", (Join-Path $env:LOCALAPPDATA "Android\Sdk"))) {
+    foreach ($candidate in @($env:ANDROID_SDK_ROOT, $env:ANDROID_HOME, "D:\Android\SDK", "D:\Android", (Join-Path $env:LOCALAPPDATA "Android\Sdk"))) {
         if ($candidate -and (Test-Path (Join-Path $candidate "platform-tools\adb.exe"))) { return (Resolve-Path $candidate).Path }
     }
     throw "Android SDK not found. Run tools\mobile_phone\setup_mobile_phone.ps1."

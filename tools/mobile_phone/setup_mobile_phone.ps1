@@ -20,8 +20,13 @@ $BaseRuntimeFiles = @(
 )
 
 function Find-AndroidSdk {
-    if ($SdkRoot) { return $SdkRoot }
-    foreach ($candidate in @($env:ANDROID_SDK_ROOT, $env:ANDROID_HOME, "D:\Android\SDK", (Join-Path $env:LOCALAPPDATA "Android\Sdk"))) {
+    if ($SdkRoot) {
+        if (Test-Path (Join-Path $SdkRoot "platform-tools\adb.exe")) {
+            return (Resolve-Path $SdkRoot).Path
+        }
+        throw "Invalid Android SDK root: $SdkRoot (platform-tools\adb.exe not found)."
+    }
+    foreach ($candidate in @($env:ANDROID_SDK_ROOT, $env:ANDROID_HOME, "D:\Android\SDK", "D:\Android", (Join-Path $env:LOCALAPPDATA "Android\Sdk"))) {
         if ($candidate -and (Test-Path (Join-Path $candidate "platform-tools\adb.exe"))) {
             return (Resolve-Path $candidate).Path
         }
